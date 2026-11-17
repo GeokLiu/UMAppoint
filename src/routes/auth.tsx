@@ -2,8 +2,7 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { toast } from "sonner";
 import { GraduationCap } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
-import { errMsg } from "@/lib/format";
+import { useAuth, type Role } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -22,8 +21,8 @@ export const Route = createFileRoute("/auth")({
 });
 
 const DEMO = [
-  { label: "Demo student", email: "aiman.student@demo.umappoint.edu" },
-  { label: "Demo lecturer", email: "nurul.hakim@demo.umappoint.edu" },
+  { label: "Demo student", email: "aiman.student@demo.umappoint.edu", role: "student" as Role },
+  { label: "Demo lecturer", email: "nurul.hakim@demo.umappoint.edu", role: "lecturer" as Role },
 ];
 
 function AuthPage() {
@@ -35,30 +34,20 @@ function AuthPage() {
   const [f, setF] = useState({ email: "", password: "", full_name: "", matric_no: "", programme: "", department: "" });
   const set = (k: keyof typeof f) => (e: React.ChangeEvent<HTMLInputElement>) => setF({ ...f, [k]: e.target.value });
 
-  async function signIn(email: string, password: string) {
+  const { setPreviewRole } = useAuth();
+
+  // Preview mode: no server calls, just enter the portal with the chosen role.
+  function enter(r: Role) {
     setBusy(true);
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
-    setBusy(false);
-    if (error) { toast.error(errMsg(error)); return; }
+    setPreviewRole(r);
+    toast.success(r === "lecturer" ? "Signed in as demo lecturer" : "Signed in as demo student");
     navigate({ to: "/dashboard" });
   }
 
-  async function onSubmit(e: React.FormEvent) {
+  function onSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!register) { await signIn(f.email, f.password); return; }
-    setBusy(true);
-    const { data, error } = await supabase.auth.signUp({
-      email: f.email,
-      password: f.password,
-      options: {
-        emailRedirectTo: window.location.origin,
-        data: { role, full_name: f.full_name, matric_no: f.matric_no, programme: f.programme, department: f.department },
-      },
-    });
-    setBusy(false);
-    if (error) { toast.error(errMsg(error)); return; }
-    if (data.session) navigate({ to: "/dashboard" });
-    else toast.success("Account created. Check your email to confirm, then sign in.");
+    if (register) { enter(role); return; }
+    enter(f.email.toLowerCase().includes("student") ? "student" : f.email ? "lecturer" : "student");
   }
 
   return (
@@ -114,7 +103,7 @@ function AuthPage() {
               <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Try a demo account</p>
               <div className="mt-3 grid grid-cols-2 gap-2">
                 {DEMO.map((d) => (
-                  <Button key={d.email} variant="outline" size="sm" disabled={busy} onClick={() => signIn(d.email, "Demo@1234")}>{d.label}</Button>
+                  <Button key={d.email} variant="outline" size="sm" disabled={busy} onClick={() => enter(d.role)}>{d.label}</Button>
                 ))}
               </div>
             </div>
