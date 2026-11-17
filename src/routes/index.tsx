@@ -37,8 +37,8 @@ function Index() {
           <Button asChild><Link to="/dashboard">Go to dashboard</Link></Button>
         ) : (
           <div className="flex gap-2">
-            <Button asChild variant="ghost"><Link to="/auth">Sign in</Link></Button>
-            <Button asChild><Link to="/auth" search={{ mode: "register" }}>Register</Link></Button>
+            <Button asChild variant="ghost"><Link to="/dashboard">Open app</Link></Button>
+            <Button asChild><Link to="/dashboard">Get started</Link></Button>
           </div>
         )}
       </header>
@@ -55,8 +55,8 @@ function Index() {
             Students find a lecturer, pick an open slot and send a request. Lecturers approve, reject or reschedule from one place.
           </p>
           <div className="mt-8 flex flex-wrap gap-3">
-            <Button asChild size="lg"><Link to="/auth">Sign in to book</Link></Button>
-            <Button asChild size="lg" variant="outline"><Link to="/auth" search={{ mode: "register" }}>Create an account</Link></Button>
+            <Button asChild size="lg"><Link to="/dashboard">Enter the app</Link></Button>
+            <Button asChild size="lg" variant="outline"><Link to="/lecturers">Find lecturers</Link></Button>
           </div>
         </div>
         <div className="rounded-2xl bg-primary p-6 text-primary-foreground shadow-card">

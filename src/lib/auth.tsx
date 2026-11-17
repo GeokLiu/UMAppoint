@@ -18,13 +18,25 @@ interface AuthCtx {
   ready: boolean;
   me: Me | null;
   meLoading: boolean;
+  setPreviewRole: (r: Role) => void;
 }
 
-const Ctx = createContext<AuthCtx>({ session: null, ready: false, me: null, meLoading: true });
+const MOCK: Record<Role, Me> = {
+  student: { id: "b0000000-0000-0000-0000-000000000001", email: "aiman.student@demo.umappoint.edu", full_name: "Muhammad Aiman bin Rosli", phone: null, role: "student" },
+  lecturer: { id: "a0000000-0000-0000-0000-000000000001", email: "nurul.hakim@demo.umappoint.edu", full_name: "Nurul Hakimah binti Azman", phone: null, role: "lecturer" },
+};
+
+const Ctx = createContext<AuthCtx>({ session: null, ready: false, me: MOCK.student, meLoading: false, setPreviewRole: () => {} });
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [ready, setReady] = useState(false);
+  const [previewRole, setPreviewRoleState] = useState<Role>("student");
+  useEffect(() => {
+    const r = localStorage.getItem("previewRole");
+    if (r === "lecturer" || r === "student") setPreviewRoleState(r);
+  }, []);
+  const setPreviewRole = (r: Role) => { localStorage.setItem("previewRole", r); setPreviewRoleState(r); };
 
   useEffect(() => {
     const { data } = supabase.auth.onAuthStateChange((_e, s) => setSession(s));
@@ -51,7 +63,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   });
 
   return (
-    <Ctx.Provider value={{ session, ready, me: meQ.data ?? null, meLoading: !!uid && meQ.isLoading }}>
+    <Ctx.Provider value={{ session, ready, me: MOCK[previewRole], meLoading: false, setPreviewRole }}>
       {children}
     </Ctx.Provider>
   );

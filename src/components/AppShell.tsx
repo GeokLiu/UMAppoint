@@ -43,7 +43,7 @@ const LECTURER_NAV: NavItem[] = [
 ];
 
 export function AppShell() {
-  const { me } = useAuth();
+  const { me, setPreviewRole } = useAuth();
   const [open, setOpen] = useState(false);
   const navigate = useNavigate();
   const qc = useQueryClient();
@@ -51,11 +51,10 @@ export function AppShell() {
   const unread = notifQ.data?.filter((n) => !n.is_read).length ?? 0;
   const nav = me?.role === "lecturer" ? LECTURER_NAV : STUDENT_NAV;
 
-  async function signOut() {
-    await qc.cancelQueries();
-    qc.clear();
-    await supabase.auth.signOut();
-    navigate({ to: "/auth", replace: true });
+  function switchRole() {
+    setPreviewRole(me?.role === "lecturer" ? "student" : "lecturer");
+    qc.invalidateQueries();
+    navigate({ to: "/dashboard" });
   }
 
   const sidebar = (
@@ -102,10 +101,10 @@ export function AppShell() {
           </div>
         </div>
         <button
-          onClick={signOut}
+          onClick={switchRole}
           className="mt-1 flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
         >
-          <LogOut className="h-4 w-4" /> Sign out
+          <LogOut className="h-4 w-4" /> Switch to {me?.role === "lecturer" ? "Student" : "Lecturer"} view
         </button>
       </div>
     </div>
