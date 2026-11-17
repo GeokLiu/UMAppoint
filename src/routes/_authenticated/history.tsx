@@ -12,9 +12,9 @@ export const Route = createFileRoute("/_authenticated/history")({
     const [query, setQuery] = useState("");
     const [status, setStatus] = useState("All");
     const past = [
-      { ...demoAppointments[0], date: "2026-09-22", status: "Completed" as const },
-      { ...demoAppointments[1], date: "2026-08-11", status: "Cancelled" as const },
-      { ...demoAppointments[2], date: "2026-07-04", status: "Rejected" as const },
+      { ...demoAppointments[0]!, date: "2026-09-22", status: "Completed" as const },
+      { ...demoAppointments[1]!, date: "2026-08-11", status: "Cancelled" as const },
+      { ...demoAppointments[2]!, date: "2026-07-04", status: "Rejected" as const },
     ];
     const filtered = past.filter(
       (a) =>
