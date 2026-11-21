@@ -46,7 +46,6 @@ import type { Slot } from "@/lib/format";
 import { errMsg, fmtDate, fmtRange } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { Field, StatusPill } from "@/components/portal-ui";
-import { apiCreateSlot, apiDeleteSlot, apiUpdateSlot, getToken } from "@/lib/backend";
 
 type ViewMode = "weekly" | "monthly";
 type LocationType = "in_person" | "online";
@@ -143,11 +142,7 @@ export const Route = createFileRoute("/_authenticated/availability")({
       },
     });
 
-    const hasToken = !!getToken();
-    const refresh = () => {
-      queryClient.invalidateQueries({ queryKey: ["availability", me?.id] });
-      queryClient.invalidateQueries({ queryKey: ["lecturers"] });
-    };
+    const refresh = () => queryClient.invalidateQueries({ queryKey: ["availability", me?.id] });
     const saveMutation = useMutation({
       mutationFn: async () => {
         if (!me?.id) throw new Error("You must be signed in as a lecturer.");
@@ -155,32 +150,23 @@ export const Route = createFileRoute("/_authenticated/availability")({
           throw new Error("End time must be after the start time.");
         }
         const values = {
+          lecturer_id: me.id,
           slot_date: form.date,
-          start_time: form.start.length === 5 ? `${form.start}:00` : form.start,
-          end_time: form.end.length === 5 ? `${form.end}:00` : form.end,
+          start_time: form.start,
+          end_time: form.end,
           location_type: form.locationType,
           location: form.location.trim(),
           notes: form.notes.trim() || null,
         };
-
-        if (hasToken) {
-          if (editing) {
-            await apiUpdateSlot(editing.id, values);
-          } else {
-            await apiCreateSlot(values);
-          }
+        if (editing) {
+          const { error } = await supabase
+            .from("availability_slots")
+            .update(values)
+            .eq("id", editing.id);
+          if (error) throw error;
         } else {
-          const dbValues = { ...values, lecturer_id: me.id };
-          if (editing) {
-            const { error } = await supabase
-              .from("availability_slots")
-              .update(dbValues)
-              .eq("id", editing.id);
-            if (error) throw error;
-          } else {
-            const { error } = await supabase.from("availability_slots").insert(dbValues);
-            if (error) throw error;
-          }
+          const { error } = await supabase.from("availability_slots").insert(values);
+          if (error) throw error;
         }
       },
       onSuccess: () => {
@@ -194,12 +180,8 @@ export const Route = createFileRoute("/_authenticated/availability")({
     const deleteMutation = useMutation({
       mutationFn: async (slot: SlotWithStatus) => {
         if (slot.booked) throw new Error("Booked slots cannot be deleted.");
-        if (hasToken) {
-          await apiDeleteSlot(slot.id);
-        } else {
-          const { error } = await supabase.from("availability_slots").delete().eq("id", slot.id);
-          if (error) throw error;
-        }
+        const { error } = await supabase.from("availability_slots").delete().eq("id", slot.id);
+        if (error) throw error;
       },
       onSuccess: () => {
         toast.success("Availability slot deleted");

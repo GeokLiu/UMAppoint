@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState, useMemo } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import {
   CalendarDays,
   CheckCircle2,
@@ -20,7 +20,6 @@ import { StatusPill } from "@/components/portal-ui";
 import { useAuth } from "@/lib/auth";
 import {
   apiGetLecturerAppointments,
-  apiUpdateStatus,
   fmtDate,
   fmtTime,
   getToken,
@@ -59,39 +58,10 @@ export const Route = createFileRoute("/_authenticated/schedule")({
   head: () => ({ meta: [{ title: "My Schedule — UMAppoint" }] }),
   component: function SchedulePage() {
     const { me, isPreview } = useAuth();
-    const qc = useQueryClient();
     const hasToken = !!getToken();
 
     const [viewMode, setViewMode] = useState<"timeline" | "calendar">("timeline");
     const [currentMonth, setCurrentMonth] = useState(() => new Date());
-    const [actingId, setActingId] = useState<string | null>(null);
-
-    async function handleComplete(id: string) {
-      if (isPreview || id.startsWith("APT-10")) {
-        toast.success("Appointment marked as completed (Demo Mode)");
-        return;
-      }
-      setActingId(id);
-      try {
-        await apiUpdateStatus(id, "COMPLETED");
-        toast.success("Appointment marked as completed!");
-        qc.invalidateQueries({ queryKey: ["lecturer-schedule-approved"] });
-        qc.invalidateQueries({ queryKey: ["history-appointments"] });
-      } catch (err: unknown) {
-        const msg = err instanceof Error ? err.message : "Failed to update appointment";
-        toast.error("Error", { description: msg });
-      } finally {
-        setActingId(null);
-      }
-    }
-
-    function handleOpenMeeting(location: string) {
-      if (location.startsWith("http://") || location.startsWith("https://")) {
-        window.open(location, "_blank");
-      } else {
-        window.open("https://meet.google.com/new", "_blank");
-      }
-    }
 
     // ── Fetch approved appointments for lecturer from FastAPI ───────────────
     const { data: realAppointments, isLoading } = useQuery({
@@ -301,22 +271,13 @@ export const Route = createFileRoute("/_authenticated/schedule")({
                   <div className="mt-4 flex gap-2">
                     <Button
                       size="sm"
-                      disabled={actingId === item.id}
-                      onClick={() => handleComplete(item.id)}
+                      onClick={() => toast.success("Appointment marked as completed")}
                     >
-                      {actingId === item.id ? (
-                        <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
-                      ) : (
-                        <CheckCircle2 className="mr-1.5 h-4 w-4" />
-                      )}
+                      <CheckCircle2 className="mr-1.5 h-4 w-4" />
                       Mark as completed
                     </Button>
                     {item.location.toLowerCase().includes("online") && (
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => handleOpenMeeting(item.location)}
-                      >
+                      <Button size="sm" variant="outline">
                         <Video className="mr-1.5 h-4 w-4" />
                         Open meeting
                       </Button>
@@ -512,22 +473,13 @@ export const Route = createFileRoute("/_authenticated/schedule")({
                       <div className="mt-3 flex gap-2">
                         <Button
                           size="sm"
-                          disabled={actingId === item.id}
-                          onClick={() => handleComplete(item.id)}
+                          onClick={() => toast.success("Appointment marked as completed")}
                         >
-                          {actingId === item.id ? (
-                            <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
-                          ) : (
-                            <CheckCircle2 className="mr-1.5 h-3.5 w-3.5" />
-                          )}
+                          <CheckCircle2 className="mr-1.5 h-3.5 w-3.5" />
                           Mark as completed
                         </Button>
                         {item.location.toLowerCase().includes("online") && (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => handleOpenMeeting(item.location)}
-                          >
+                          <Button size="sm" variant="outline">
                             <Video className="mr-1.5 h-3.5 w-3.5" />
                             Open meeting
                           </Button>
