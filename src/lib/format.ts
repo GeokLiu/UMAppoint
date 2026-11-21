@@ -14,7 +14,12 @@ export const STATUS_LABEL: Record<Status, string> = {
   completed: "Completed",
 };
 
-export const ACTIVE_STATUSES: Status[] = ["pending", "approved", "cancellation_requested", "rescheduling_requested"];
+export const ACTIVE_STATUSES: Status[] = [
+  "pending",
+  "approved",
+  "cancellation_requested",
+  "rescheduling_requested",
+];
 
 export function fmtDate(d: string) {
   return new Date(d + "T00:00:00").toLocaleDateString("en-MY", {
@@ -55,6 +60,7 @@ export function initials(name: string) {
 }
 
 export function errMsg(e: unknown) {
-  if (e && typeof e === "object" && "message" in e) return String((e as { message: string }).message);
+  if (e && typeof e === "object" && "message" in e)
+    return String((e as { message: string }).message);
   return "Something went wrong. Please try again.";
 }

@@ -76,16 +76,16 @@ Open the local URL printed by Vite, usually
 
 ## Available scripts
 
-| Command | Description |
-| --- | --- |
-| `bun run dev` | Start the Vite development server |
-| `bun run build` | Create a production build |
-| `bun run build:dev` | Create a development-mode build |
-| `bun run preview` | Preview the production build locally |
-| `bun run lint` | Run ESLint |
-| `bun run format` | Format the project with Prettier |
-| `bun run test` | Run the test suite once |
-| `bun run test:watch` | Run Vitest in watch mode |
+| Command              | Description                          |
+| -------------------- | ------------------------------------ |
+| `bun run dev`        | Start the Vite development server    |
+| `bun run build`      | Create a production build            |
+| `bun run build:dev`  | Create a development-mode build      |
+| `bun run preview`    | Preview the production build locally |
+| `bun run lint`       | Run ESLint                           |
+| `bun run format`     | Format the project with Prettier     |
+| `bun run test`       | Run the test suite once              |
+| `bun run test:watch` | Run Vitest in watch mode             |
 
 The equivalent `npm run <script>` commands are also supported.
 

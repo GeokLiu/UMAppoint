@@ -1,7 +1,14 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
-import type { Session } from "@supabase/supabase-js";
-import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import {
+  apiLogin,
+  apiRegister,
+  setAuth,
+  clearAuth,
+  getStoredUser,
+  getToken,
+  type StoredUser,
+  type RegisterPayload,
+} from "@/lib/backend";
 
 export type Role = "student" | "lecturer";
 
@@ -13,57 +20,139 @@ export interface Me {
   role: Role;
 }
 
+// ── Preview / demo mode mock users ───────────────────────────────────────────
+const MOCK: Record<Role, Me> = {
+  student: {
+    id: "b0000000-0000-0000-0000-000000000001",
+    email: "aiman.student@demo.umappoint.edu",
+    full_name: "Muhammad Aiman bin Rosli",
+    phone: null,
+    role: "student",
+  },
+  lecturer: {
+    id: "a0000000-0000-0000-0000-000000000001",
+    email: "nurul.hakim@demo.umappoint.edu",
+    full_name: "Nurul Hakimah binti Azman",
+    phone: null,
+    role: "lecturer",
+  },
+};
+
 interface AuthCtx {
-  session: Session | null;
-  ready: boolean;
   me: Me | null;
-  meLoading: boolean;
+  session: { user: { id: string; email: string } } | null;
+  ready: boolean;
+  /** True when using demo mock data (not real backend auth) */
+  isPreview: boolean;
+  signIn: (email: string, password: string) => Promise<void>;
+  signUp: (data: RegisterPayload) => Promise<void>;
+  signOut: () => void;
+  /** Quick demo-mode switcher – does NOT call the backend */
   setPreviewRole: (r: Role) => void;
 }
 
-const MOCK: Record<Role, Me> = {
-  student: { id: "b0000000-0000-0000-0000-000000000001", email: "aiman.student@demo.umappoint.edu", full_name: "Muhammad Aiman bin Rosli", phone: null, role: "student" },
-  lecturer: { id: "a0000000-0000-0000-0000-000000000001", email: "nurul.hakim@demo.umappoint.edu", full_name: "Nurul Hakimah binti Azman", phone: null, role: "lecturer" },
-};
+const Ctx = createContext<AuthCtx>({
+  me: null,
+  session: null,
+  ready: false,
+  isPreview: false,
+  signIn: async () => {},
+  signUp: async () => {},
+  signOut: () => {},
+  setPreviewRole: () => {},
+});
 
-const Ctx = createContext<AuthCtx>({ session: null, ready: false, me: MOCK.student, meLoading: false, setPreviewRole: () => {} });
+function storedToMe(u: StoredUser): Me {
+  return {
+    id: u.user_id,
+    email: u.email,
+    full_name: u.full_name,
+    phone: null,
+    role: u.role as Role,
+  };
+}
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [session, setSession] = useState<Session | null>(null);
+  const [me, setMe] = useState<Me | null>(null);
   const [ready, setReady] = useState(false);
-  const [previewRole, setPreviewRoleState] = useState<Role>("student");
-  useEffect(() => {
-    const r = localStorage.getItem("previewRole");
-    if (r === "lecturer" || r === "student") setPreviewRoleState(r);
-  }, []);
-  const setPreviewRole = (r: Role) => { localStorage.setItem("previewRole", r); setPreviewRoleState(r); };
+  const [isPreview, setIsPreview] = useState(false);
 
+  // ── Initialise from localStorage ─────────────────────────────────────────
   useEffect(() => {
-    const { data } = supabase.auth.onAuthStateChange((_e, s) => setSession(s));
-    supabase.auth.getSession().then(({ data }) => {
-      setSession(data.session);
-      setReady(true);
-    });
-    return () => data.subscription.unsubscribe();
+    const token = getToken();
+    if (token) {
+      const stored = getStoredUser();
+      if (stored) {
+        setMe(storedToMe(stored));
+        setIsPreview(false);
+      } else {
+        clearAuth();
+        setMe(null);
+      }
+    } else {
+      const r = localStorage.getItem("previewRole") as Role | null;
+      if (r === "student" || r === "lecturer") {
+        setMe(MOCK[r]);
+        setIsPreview(true);
+      } else {
+        // Not logged in and not in preview mode
+        setMe(null);
+        setIsPreview(false);
+      }
+    }
+    setReady(true);
   }, []);
 
-  const uid = session?.user.id;
-  const meQ = useQuery({
-    queryKey: ["me", uid],
-    enabled: !!uid,
-    queryFn: async (): Promise<Me> => {
-      const [{ data: p, error }, { data: r }] = await Promise.all([
-        supabase.from("profiles").select("*").eq("id", uid!).single(),
-        supabase.from("user_roles").select("role").eq("user_id", uid!),
-      ]);
-      if (error) throw error;
-      const role: Role = r?.some((x) => x.role === "lecturer") ? "lecturer" : "student";
-      return { id: p.id, email: p.email, full_name: p.full_name, phone: p.phone, role };
-    },
-  });
+  // ── Real auth actions ─────────────────────────────────────────────────────
+  async function signIn(email: string, password: string) {
+    const res = await apiLogin(email, password);
+    const user: StoredUser = {
+      user_id: res.user_id,
+      role: res.role as Role,
+      full_name: res.full_name,
+      email: res.email,
+    };
+    setAuth(res.token, user);
+    localStorage.removeItem("previewRole");
+    setMe(storedToMe(user));
+    setIsPreview(false);
+  }
+
+  async function signUp(data: RegisterPayload) {
+    const res = await apiRegister(data);
+    const user: StoredUser = {
+      user_id: res.user_id,
+      role: res.role as Role,
+      full_name: res.full_name,
+      email: res.email,
+    };
+    setAuth(res.token, user);
+    localStorage.removeItem("previewRole");
+    setMe(storedToMe(user));
+    setIsPreview(false);
+  }
+
+  function signOut() {
+    clearAuth();
+    localStorage.removeItem("previewRole");
+    setMe(null);
+    setIsPreview(false);
+  }
+
+  // ── Demo preview ──────────────────────────────────────────────────────────
+  function setPreviewRole(r: Role) {
+    clearAuth();
+    localStorage.setItem("previewRole", r);
+    setMe(MOCK[r]);
+    setIsPreview(true);
+  }
+
+  const session = me ? { user: { id: me.id, email: me.email } } : null;
 
   return (
-    <Ctx.Provider value={{ session, ready, me: MOCK[previewRole], meLoading: false, setPreviewRole }}>
+    <Ctx.Provider
+      value={{ me, session, ready, isPreview, signIn, signUp, signOut, setPreviewRole }}
+    >
       {children}
     </Ctx.Provider>
   );
