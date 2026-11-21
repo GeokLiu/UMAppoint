@@ -63,6 +63,24 @@ class SlotOut(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class SlotCreate(BaseModel):
+    slot_date: date
+    start_time: time
+    end_time: time
+    location_type: str = "physical"
+    location: str = ""
+    notes: Optional[str] = None
+
+
+class SlotUpdate(BaseModel):
+    slot_date: Optional[date] = None
+    start_time: Optional[time] = None
+    end_time: Optional[time] = None
+    location_type: Optional[str] = None
+    location: Optional[str] = None
+    notes: Optional[str] = None
+
+
 # ---------------------------------------------------------------------------
 # Lecturers
 # ---------------------------------------------------------------------------
@@ -98,15 +116,17 @@ class BookingRequest(BaseModel):
 
 
 class StatusUpdateRequest(BaseModel):
-    status: str           # "APPROVED" or "REJECTED"
+    status: str           # "APPROVED", "REJECTED", "COMPLETED", "CANCELLED"
     lecturer_note: Optional[str] = None
+    reason: Optional[str] = None
 
     @field_validator("status")
     @classmethod
     def valid_status(cls, v: str) -> str:
-        if v.upper() not in ("APPROVED", "REJECTED"):
-            raise ValueError("status must be APPROVED or REJECTED")
-        return v.upper()
+        s = v.upper()
+        if s not in ("APPROVED", "REJECTED", "COMPLETED", "CANCELLED"):
+            raise ValueError("status must be APPROVED, REJECTED, COMPLETED, or CANCELLED")
+        return s
 
 
 class AppointmentOut(BaseModel):

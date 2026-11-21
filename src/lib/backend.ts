@@ -228,13 +228,44 @@ export async function apiGetLecturerAppointments(status?: string): Promise<Appoi
 
 export async function apiUpdateStatus(
   id: string,
-  status: "APPROVED" | "REJECTED",
-  lecturerNote?: string,
+  status: "APPROVED" | "REJECTED" | "COMPLETED" | "CANCELLED",
+  noteOrReason?: string,
 ): Promise<AppointmentOut> {
+  const isCancel = status === "CANCELLED";
   return req<AppointmentOut>("PATCH", `/api/appointments/${id}/status`, {
     status,
-    lecturer_note: lecturerNote ?? null,
+    lecturer_note: !isCancel ? (noteOrReason ?? null) : null,
+    reason: isCancel ? (noteOrReason ?? null) : null,
   });
+}
+
+export async function apiCreateSlot(body: {
+  slot_date: string;
+  start_time: string;
+  end_time: string;
+  location_type: string;
+  location: string;
+  notes?: string | null;
+}): Promise<SlotOut> {
+  return req<SlotOut>("POST", "/api/lecturers/slots", body);
+}
+
+export async function apiUpdateSlot(
+  slotId: string,
+  body: {
+    slot_date?: string;
+    start_time?: string;
+    end_time?: string;
+    location_type?: string;
+    location?: string;
+    notes?: string | null;
+  },
+): Promise<SlotOut> {
+  return req<SlotOut>("PUT", `/api/lecturers/slots/${slotId}`, body);
+}
+
+export async function apiDeleteSlot(slotId: string): Promise<void> {
+  return req<void>("DELETE", `/api/lecturers/slots/${slotId}`);
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────

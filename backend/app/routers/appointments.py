@@ -173,14 +173,17 @@ def lecturer_appointments(
 
 
 # ===========================================================================
-# Step 4: PATCH /api/appointments/{id}/status  (LECTURER only)
+# Step 4: PATCH /api/appointments/{id}/status
+# Supported:
+# - Lecturer: APPROVED, REJECTED (when pending), COMPLETED (when approved), CANCELLED
+# - Student:  CANCELLED (when pending or approved)
 # ===========================================================================
 @router.patch("/appointments/{appointment_id}/status", response_model=AppointmentOut)
 def update_appointment_status(
     appointment_id: uuid.UUID,
     req: StatusUpdateRequest,
     db: Session = Depends(get_db),
-    current_user: Profile = Depends(require_lecturer),
+    current_user: Profile = Depends(get_current_user),
 ):
     try:
         # Lock the row
@@ -193,25 +196,48 @@ def update_appointment_status(
         if not appt:
             raise HTTPException(status_code=404, detail="Appointment not found")
 
-        # Ownership check
-        if appt.lecturer_id != current_user.id:
-            raise HTTPException(status_code=403, detail="Not your appointment")
+        is_lecturer = (appt.lecturer_id == current_user.id)
+        is_student = (appt.student_id == current_user.id)
+        if not (is_lecturer or is_student):
+            raise HTTPException(status_code=403, detail="Not authorized for this appointment")
 
-        # Only pending can be acted on
-        if appt.status != AppointmentStatus.pending:
-            raise HTTPException(
-                status_code=400,
-                detail="Only pending appointments can be approved or rejected",
-            )
+        target = req.status.lower()
 
-        new_status = AppointmentStatus(req.status.lower())   # "approved" or "rejected"
-        appt.status = new_status
-        if req.lecturer_note:
-            appt.lecturer_note = req.lecturer_note.strip()
+        if is_student:
+            if target != "cancelled":
+                raise HTTPException(status_code=400, detail="Students can only cancel their appointments")
+            if appt.status not in (AppointmentStatus.pending, AppointmentStatus.approved):
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Cannot cancel an appointment that is already {appt.status.value}",
+                )
+            appt.status = AppointmentStatus.cancelled
+            if req.reason:
+                appt.student_request_reason = req.reason.strip()
+
+        elif is_lecturer:
+            if target in ("approved", "rejected"):
+                if appt.status != AppointmentStatus.pending:
+                    raise HTTPException(
+                        status_code=400,
+                        detail="Only pending appointments can be approved or rejected",
+                    )
+                appt.status = AppointmentStatus(target)
+                if req.lecturer_note:
+                    appt.lecturer_note = req.lecturer_note.strip()
+            elif target == "completed":
+                if appt.status != AppointmentStatus.approved:
+                    raise HTTPException(
+                        status_code=400,
+                        detail="Only approved appointments can be marked completed",
+                    )
+                appt.status = AppointmentStatus.completed
+            elif target == "cancelled":
+                appt.status = AppointmentStatus.cancelled
+                if req.lecturer_note:
+                    appt.lecturer_note = req.lecturer_note.strip()
+
         appt.updated_at = datetime.utcnow().isoformat()
-
-        # On REJECTED the Postgres unique-index automatically frees the slot
-        # (index condition excludes 'rejected' rows).
 
         db.commit()
         db.refresh(appt)

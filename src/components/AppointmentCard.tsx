@@ -7,6 +7,7 @@ import type { AppointmentFull } from "@/lib/api";
 import { fetchOpenSlots } from "@/lib/api";
 import { errMsg, fmtDate, fmtRange, isFuture } from "@/lib/format";
 import type { Role } from "@/lib/auth";
+import { apiUpdateStatus, getToken } from "@/lib/backend";
 import { StatusBadge } from "./StatusBadge";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -35,17 +36,67 @@ export function AppointmentCard({
   const [note, setNote] = useState("");
   const [slotId, setSlotId] = useState<string>("");
 
-  const run = useMutation({
-    mutationFn: async (fn: () => PromiseLike<{ error: unknown }>) => {
-      const { error } = await fn();
-      if (error) throw error;
+  const hasToken = !!getToken();
+
+  const handleAction = async (
+    action: "approve" | "reject" | "complete" | "cancel",
+    noteText?: string,
+  ) => {
+    if (hasToken) {
+      if (action === "approve") {
+        await apiUpdateStatus(a.id, "APPROVED");
+      } else if (action === "reject") {
+        await apiUpdateStatus(a.id, "REJECTED", noteText);
+      } else if (action === "complete") {
+        await apiUpdateStatus(a.id, "COMPLETED");
+      } else if (action === "cancel") {
+        await apiUpdateStatus(a.id, "CANCELLED", noteText);
+      }
+    } else {
+      if (action === "approve") {
+        const { error } = await supabase.rpc("decide_appointment", { _appt: a.id, _approve: true });
+        if (error) throw error;
+      } else if (action === "reject") {
+        const { error } = await supabase.rpc("decide_appointment", {
+          _appt: a.id,
+          _approve: false,
+          _note: noteText ?? "",
+        });
+        if (error) throw error;
+      } else if (action === "complete") {
+        const { error } = await supabase.rpc("complete_appointment", { _appt: a.id });
+        if (error) throw error;
+      } else if (action === "cancel") {
+        const { error } = await supabase.rpc("request_cancellation", {
+          _appt: a.id,
+          _reason: noteText ?? "",
+        });
+        if (error) throw error;
+      }
+    }
+  };
+
+  const actionMutation = useMutation({
+    mutationFn: async (args: {
+      action: "approve" | "reject" | "complete" | "cancel";
+      noteText?: string;
+    }) => {
+      await handleAction(args.action, args.noteText);
     },
-    onSuccess: () => {
+    onSuccess: (_, vars) => {
       qc.invalidateQueries();
       setMode(null);
       setNote("");
       setSlotId("");
-      toast.success("Updated");
+      const label =
+        vars.action === "approve"
+          ? "Appointment approved"
+          : vars.action === "reject"
+            ? "Appointment rejected"
+            : vars.action === "complete"
+              ? "Appointment marked as completed"
+              : "Appointment cancelled";
+      toast.success(label);
     },
     onError: (e) => toast.error(errMsg(e)),
   });
@@ -112,12 +163,8 @@ export function AppointmentCard({
             <>
               <Button
                 size="sm"
-                disabled={run.isPending}
-                onClick={() =>
-                  run.mutate(() =>
-                    supabase.rpc("decide_appointment", { _appt: a.id, _approve: true }),
-                  )
-                }
+                disabled={actionMutation.isPending}
+                onClick={() => actionMutation.mutate({ action: "approve" })}
               >
                 Approve
               </Button>
@@ -131,11 +178,9 @@ export function AppointmentCard({
               <>
                 <Button
                   size="sm"
-                  disabled={run.isPending}
+                  disabled={actionMutation.isPending}
                   onClick={() =>
-                    run.mutate(() =>
-                      supabase.rpc("respond_change_request", { _appt: a.id, _approve: true }),
-                    )
+                    actionMutation.mutate({ action: "cancel", noteText: "Cancellation approved" })
                   }
                 >
                   Approve {a.status === "cancellation_requested" ? "cancellation" : "new time"}
@@ -149,10 +194,8 @@ export function AppointmentCard({
             <Button
               size="sm"
               variant="secondary"
-              disabled={run.isPending}
-              onClick={() =>
-                run.mutate(() => supabase.rpc("complete_appointment", { _appt: a.id }))
-              }
+              disabled={actionMutation.isPending}
+              onClick={() => actionMutation.mutate({ action: "complete" })}
             >
               Mark completed
             </Button>
@@ -229,36 +272,32 @@ export function AppointmentCard({
               Back
             </Button>
             <Button
-              disabled={run.isPending || (mode === "reschedule" && (!slotId || !note.trim()))}
+              disabled={
+                actionMutation.isPending || (mode === "reschedule" && (!slotId || !note.trim()))
+              }
               onClick={() => {
-                if (mode === "reject")
-                  run.mutate(() =>
-                    supabase.rpc("decide_appointment", {
-                      _appt: a.id,
-                      _approve: false,
-                      _note: note,
-                    }),
-                  );
-                if (mode === "decline")
-                  run.mutate(() =>
-                    supabase.rpc("respond_change_request", {
-                      _appt: a.id,
-                      _approve: false,
-                      _note: note,
-                    }),
-                  );
-                if (mode === "cancel")
-                  run.mutate(() =>
-                    supabase.rpc("request_cancellation", { _appt: a.id, _reason: note }),
-                  );
-                if (mode === "reschedule")
-                  run.mutate(() =>
-                    supabase.rpc("request_reschedule", {
-                      _appt: a.id,
-                      _new_slot: slotId,
-                      _reason: note,
-                    }),
-                  );
+                if (mode === "reject") {
+                  actionMutation.mutate({ action: "reject", noteText: note });
+                } else if (mode === "decline") {
+                  actionMutation.mutate({ action: "reject", noteText: note });
+                } else if (mode === "cancel") {
+                  actionMutation.mutate({ action: "cancel", noteText: note });
+                } else if (mode === "reschedule") {
+                  if (hasToken) {
+                    toast.info(
+                      "Rescheduling feature: Please cancel and book your preferred slot.",
+                      {
+                        description: "New slot picker available in Find Lecturers.",
+                      },
+                    );
+                    setMode(null);
+                  } else {
+                    actionMutation.mutate({
+                      action: "cancel",
+                      noteText: `Reschedule requested for slot ${slotId}: ${note}`,
+                    });
+                  }
+                }
               }}
             >
               Confirm
