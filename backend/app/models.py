@@ -138,3 +138,16 @@ class AppCredential(Base):
     user_id       = Column(UUID(as_uuid=True), ForeignKey("public.profiles.id"), primary_key=True)
     password_hash = Column(String, nullable=False)
     created_at    = Column(String)
+
+
+class Notification(Base):
+    __tablename__ = "notifications"
+    __table_args__ = {"schema": "public"}
+
+    id             = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id        = Column(UUID(as_uuid=True), ForeignKey("public.profiles.id"), nullable=False)
+    title          = Column(String, nullable=False)
+    message        = Column(Text, nullable=False)
+    appointment_id = Column(UUID(as_uuid=True), ForeignKey("public.appointments.id"), nullable=True)
+    is_read        = Column(Boolean, nullable=False, default=False)
+    created_at     = Column(String)

@@ -96,6 +96,16 @@ export interface AppointmentOut {
   updated_at: string | null;
 }
 
+export interface ApiNotification {
+  id: string;
+  user_id: string;
+  title: string;
+  message: string;
+  appointment_id?: string | null;
+  is_read: boolean;
+  created_at: string;
+}
+
 // ── Core fetch wrapper ────────────────────────────────────────────────────────
 
 async function req<T>(method: string, path: string, body?: unknown): Promise<T> {
@@ -228,13 +238,58 @@ export async function apiGetLecturerAppointments(status?: string): Promise<Appoi
 
 export async function apiUpdateStatus(
   id: string,
-  status: "APPROVED" | "REJECTED",
+  status: "APPROVED" | "REJECTED" | "COMPLETED" | "CANCELLED",
   lecturerNote?: string,
 ): Promise<AppointmentOut> {
   return req<AppointmentOut>("PATCH", `/api/appointments/${id}/status`, {
     status,
     lecturer_note: lecturerNote ?? null,
   });
+}
+
+// ── History & Notifications ───────────────────────────────────────────────────
+
+export async function apiGetHistory(): Promise<AppointmentOut[]> {
+  return req<AppointmentOut[]>("GET", "/api/history");
+}
+
+export async function apiGetNotifications(): Promise<ApiNotification[]> {
+  return req<ApiNotification[]>("GET", "/api/notifications");
+}
+
+export async function apiMarkNotificationRead(id: string): Promise<ApiNotification> {
+  return req<ApiNotification>("PATCH", `/api/notifications/${id}/read`);
+}
+
+export async function apiMarkAllNotificationsRead(): Promise<{ status: string; message: string }> {
+  return req<{ status: string; message: string }>("PATCH", "/api/notifications/read-all");
+}
+
+// ── Profile ───────────────────────────────────────────────────────────────────
+
+export interface UserProfile {
+  id: string;
+  email: string;
+  full_name: string;
+  phone: string;
+  avatar_url?: string | null;
+  role: "student" | "lecturer";
+  title?: string;
+  department?: string;
+  specialization?: string;
+  office_location?: string;
+  consultation_info?: string;
+  matric_no?: string;
+  programme?: string;
+  year_of_study?: number;
+}
+
+export async function apiGetProfile(): Promise<UserProfile> {
+  return req<UserProfile>("GET", "/api/auth/me");
+}
+
+export async function apiUpdateProfile(data: Partial<UserProfile>): Promise<UserProfile> {
+  return req<UserProfile>("PATCH", "/api/auth/me", data);
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────

@@ -8,7 +8,7 @@ from sqlalchemy.exc import OperationalError, SQLAlchemyError
 from app.database import get_db
 from app.models import Profile, UserRole, Lecturer, Student, AppCredential, AppRole
 from app.schemas import RegisterRequest, LoginRequest, AuthResponse
-from app.security import hash_password, verify_password, create_token
+from app.security import hash_password, verify_password, create_token, get_current_user
 
 router = APIRouter()
 
@@ -134,3 +134,92 @@ def login(req: LoginRequest, db: Session = Depends(get_db)):
         ) from oe
     except Exception as ex:
         raise HTTPException(status_code=500, detail=str(ex)) from ex
+
+
+# ---------------------------------------------------------------------------
+# GET /api/auth/me  (current user full profile)
+# ---------------------------------------------------------------------------
+@router.get("/me")
+def get_my_profile(
+    db: Session = Depends(get_db),
+    current_user: Profile = Depends(get_current_user),
+):
+    role_row = db.query(UserRole).filter(UserRole.user_id == current_user.id).first()
+    role = role_row.role.value if role_row else "student"
+
+    res = {
+        "id": str(current_user.id),
+        "email": current_user.email,
+        "full_name": current_user.full_name,
+        "phone": current_user.phone or "+60 12 345 6789",
+        "avatar_url": current_user.avatar_url,
+        "role": role,
+    }
+
+    if role == "lecturer":
+        lec = db.query(Lecturer).filter(Lecturer.id == current_user.id).first()
+        if lec:
+            res.update({
+                "title": lec.title,
+                "department": lec.department,
+                "specialization": lec.specialization,
+                "office_location": lec.office_location,
+                "consultation_info": lec.consultation_info,
+            })
+    else:
+        stud = db.query(Student).filter(Student.id == current_user.id).first()
+        if stud:
+            res.update({
+                "matric_no": stud.matric_no,
+                "programme": stud.programme,
+                "year_of_study": stud.year_of_study,
+            })
+
+    return res
+
+
+# ---------------------------------------------------------------------------
+# PATCH /api/auth/me  (update profile)
+# ---------------------------------------------------------------------------
+@router.patch("/me")
+def update_my_profile(
+    req: dict,
+    db: Session = Depends(get_db),
+    current_user: Profile = Depends(get_current_user),
+):
+    if "full_name" in req and req["full_name"]:
+        current_user.full_name = req["full_name"].strip()
+    if "phone" in req:
+        current_user.phone = req["phone"].strip() if req["phone"] else None
+
+    role_row = db.query(UserRole).filter(UserRole.user_id == current_user.id).first()
+    role = role_row.role.value if role_row else "student"
+
+    if role == "lecturer":
+        lec = db.query(Lecturer).filter(Lecturer.id == current_user.id).first()
+        if lec:
+            if "title" in req and req["title"]:
+                lec.title = req["title"].strip()
+            if "department" in req:
+                lec.department = req["department"].strip()
+            if "specialization" in req:
+                lec.specialization = req["specialization"].strip()
+            if "office_location" in req:
+                lec.office_location = req["office_location"].strip()
+            if "consultation_info" in req:
+                lec.consultation_info = req["consultation_info"].strip()
+    else:
+        stud = db.query(Student).filter(Student.id == current_user.id).first()
+        if stud:
+            if "matric_no" in req:
+                stud.matric_no = req["matric_no"].strip()
+            if "programme" in req:
+                stud.programme = req["programme"].strip()
+            if "year_of_study" in req and req["year_of_study"]:
+                try:
+                    stud.year_of_study = int(req["year_of_study"])
+                except ValueError:
+                    pass
+
+    db.commit()
+    return get_my_profile(db=db, current_user=current_user)

@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.models import (
-    Appointment, AppointmentStatus, AvailabilitySlot, Profile
+    Appointment, AppointmentStatus, AvailabilitySlot, Profile, Notification
 )
 from app.schemas import BookingRequest, AppointmentOut, StatusUpdateRequest
 from app.security import get_current_user, require_student, require_lecturer
@@ -197,21 +197,48 @@ def update_appointment_status(
         if appt.lecturer_id != current_user.id:
             raise HTTPException(status_code=403, detail="Not your appointment")
 
-        # Only pending can be acted on
-        if appt.status != AppointmentStatus.pending:
+        new_status = AppointmentStatus(req.status.lower())
+
+        # Validate allowed transitions
+        allowed = {
+            AppointmentStatus.pending: [AppointmentStatus.approved, AppointmentStatus.rejected],
+            AppointmentStatus.approved: [AppointmentStatus.completed],
+            AppointmentStatus.cancellation_requested: [AppointmentStatus.cancelled, AppointmentStatus.approved],
+        }
+        if appt.status not in allowed or new_status not in allowed[appt.status]:
             raise HTTPException(
                 status_code=400,
-                detail="Only pending appointments can be approved or rejected",
+                detail=f"Cannot transition appointment from {appt.status.value} to {new_status.value}",
             )
 
-        new_status = AppointmentStatus(req.status.lower())   # "approved" or "rejected"
         appt.status = new_status
         if req.lecturer_note:
             appt.lecturer_note = req.lecturer_note.strip()
         appt.updated_at = datetime.utcnow().isoformat()
 
-        # On REJECTED the Postgres unique-index automatically frees the slot
-        # (index condition excludes 'rejected' rows).
+        # Create notification for student
+        try:
+            status_labels = {
+                AppointmentStatus.approved: ("Appointment approved", "approved"),
+                AppointmentStatus.rejected: ("Appointment rejected", "rejected"),
+                AppointmentStatus.completed: ("Consultation completed", "completed"),
+                AppointmentStatus.cancelled: ("Appointment cancelled", "cancelled"),
+            }
+            if new_status in status_labels:
+                title, verb = status_labels[new_status]
+                date_str = appt.appointment_date.strftime("%d %b %Y") if hasattr(appt.appointment_date, "strftime") else str(appt.appointment_date)
+                notif = Notification(
+                    id=uuid.uuid4(),
+                    user_id=appt.student_id,
+                    title=title,
+                    message=f"Your consultation with {current_user.full_name} on {date_str} is now {verb}.",
+                    appointment_id=appt.id,
+                    is_read=False,
+                    created_at=datetime.utcnow().isoformat(),
+                )
+                db.add(notif)
+        except Exception:
+            pass  # Do not block status update if notification logging fails
 
         db.commit()
         db.refresh(appt)
@@ -222,3 +249,29 @@ def update_appointment_status(
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=400, detail=f"Failed to update appointment: {str(e)}") from e
+
+
+# ===========================================================================
+# GET /api/history  (completed / rejected / cancelled consultations)
+# ===========================================================================
+@router.get("/history", response_model=list[AppointmentOut])
+def get_appointment_history(
+    db: Session = Depends(get_db),
+    current_user: Profile = Depends(get_current_user),
+):
+    """Return historical appointments (completed, rejected, cancelled) for the logged-in user."""
+    historical_statuses = (
+        AppointmentStatus.completed,
+        AppointmentStatus.rejected,
+        AppointmentStatus.cancelled,
+    )
+    appts = (
+        db.query(Appointment)
+        .filter(
+            (Appointment.student_id == current_user.id) | (Appointment.lecturer_id == current_user.id)
+        )
+        .filter(Appointment.status.in_(historical_statuses))
+        .order_by(Appointment.appointment_date.desc(), Appointment.start_time.desc())
+        .all()
+    )
+    return [_to_out(a) for a in appts]

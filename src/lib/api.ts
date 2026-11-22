@@ -4,6 +4,7 @@ import {
   getToken,
   apiGetMyAppointments,
   apiGetLecturerAppointments,
+  apiGetNotifications,
   getStoredUser,
 } from "./backend";
 import { demoAppointments, lecturers as demoLecturers } from "@/components/portal-ui";
@@ -193,6 +194,14 @@ export async function fetchMyAppointments(): Promise<AppointmentFull[]> {
 }
 
 export async function fetchNotifications() {
+  if (getToken()) {
+    try {
+      const data = await apiGetNotifications();
+      return data;
+    } catch {
+      // fallback
+    }
+  }
   try {
     const { data, error } = await supabase
       .from("notifications")

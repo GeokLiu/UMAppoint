@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.routers import auth, lecturers, appointments
+from app.routers import auth, lecturers, appointments, notifications
 from app.database import engine, Base
 
 app = FastAPI(
@@ -27,6 +27,7 @@ app.add_middleware(
 app.include_router(auth.router,         prefix="/api/auth",       tags=["Auth"])
 app.include_router(lecturers.router,    prefix="/api/lecturers",  tags=["Lecturers"])
 app.include_router(appointments.router, prefix="/api",             tags=["Appointments"])
+app.include_router(notifications.router, prefix="/api/notifications", tags=["Notifications"])
 
 
 @app.get("/", tags=["Health"])

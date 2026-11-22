@@ -23,7 +23,10 @@ class Settings(BaseSettings):
     # Build the final connection string from parts if DB_URL not given
     @property
     def database_url(self) -> str:
-        return self.db_url
+        url = self.db_url
+        if url.startswith("postgresql://"):
+            url = url.replace("postgresql://", "postgresql+psycopg2://", 1)
+        return url
 
 
 settings = Settings()

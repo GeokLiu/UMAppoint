@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState, useMemo } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   CalendarDays,
   CheckCircle2,
@@ -20,6 +20,7 @@ import { StatusPill } from "@/components/portal-ui";
 import { useAuth } from "@/lib/auth";
 import {
   apiGetLecturerAppointments,
+  apiUpdateStatus,
   fmtDate,
   fmtTime,
   getToken,
@@ -59,9 +60,30 @@ export const Route = createFileRoute("/_authenticated/schedule")({
   component: function SchedulePage() {
     const { me, isPreview } = useAuth();
     const hasToken = !!getToken();
+    const qc = useQueryClient();
 
     const [viewMode, setViewMode] = useState<"timeline" | "calendar">("timeline");
     const [currentMonth, setCurrentMonth] = useState(() => new Date());
+    const [completingId, setCompletingId] = useState<string | null>(null);
+
+    async function handleComplete(id: string) {
+      if (isPreview || id.startsWith("APT-")) {
+        toast.success("Appointment marked as completed (Demo Mode)");
+        return;
+      }
+      setCompletingId(id);
+      try {
+        await apiUpdateStatus(id, "COMPLETED");
+        toast.success("Appointment marked as completed!");
+        qc.invalidateQueries({ queryKey: ["lecturer-schedule-approved"] });
+        qc.invalidateQueries({ queryKey: ["appointments"] });
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : "Failed to mark as completed";
+        toast.error("Error", { description: msg });
+      } finally {
+        setCompletingId(null);
+      }
+    }
 
     // ── Fetch approved appointments for lecturer from FastAPI ───────────────
     const { data: realAppointments, isLoading } = useQuery({
@@ -271,9 +293,14 @@ export const Route = createFileRoute("/_authenticated/schedule")({
                   <div className="mt-4 flex gap-2">
                     <Button
                       size="sm"
-                      onClick={() => toast.success("Appointment marked as completed")}
+                      disabled={completingId === item.id}
+                      onClick={() => handleComplete(item.id)}
                     >
-                      <CheckCircle2 className="mr-1.5 h-4 w-4" />
+                      {completingId === item.id ? (
+                        <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
+                      ) : (
+                        <CheckCircle2 className="mr-1.5 h-4 w-4" />
+                      )}
                       Mark as completed
                     </Button>
                     {item.location.toLowerCase().includes("online") && (
@@ -473,9 +500,14 @@ export const Route = createFileRoute("/_authenticated/schedule")({
                       <div className="mt-3 flex gap-2">
                         <Button
                           size="sm"
-                          onClick={() => toast.success("Appointment marked as completed")}
+                          disabled={completingId === item.id}
+                          onClick={() => handleComplete(item.id)}
                         >
-                          <CheckCircle2 className="mr-1.5 h-3.5 w-3.5" />
+                          {completingId === item.id ? (
+                            <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                          ) : (
+                            <CheckCircle2 className="mr-1.5 h-3.5 w-3.5" />
+                          )}
                           Mark as completed
                         </Button>
                         {item.location.toLowerCase().includes("online") && (

@@ -263,7 +263,9 @@ export const Route = createFileRoute("/_authenticated/lecturers")({
                     <div className="flex items-start justify-between gap-2">
                       <div>
                         <p className="font-semibold text-foreground">
-                          {l.title} {l.name}
+                          {l.name.toLowerCase().startsWith((l.title || "").toLowerCase().trim())
+                            ? l.name
+                            : `${l.title ? l.title + " " : ""}${l.name}`}
                         </p>
                         <p className="mt-0.5 text-xs text-muted-foreground">{l.department}</p>
                       </div>
@@ -313,7 +315,8 @@ export const Route = createFileRoute("/_authenticated/lecturers")({
             <DialogHeader>
               <DialogTitle>Book a consultation</DialogTitle>
               <DialogDescription>
-                {selected && `${selected.title} ${selected.name} · ${selected.department}`}
+                {selected &&
+                  `${selected.name.toLowerCase().startsWith((selected.title || "").toLowerCase().trim()) ? selected.name : `${selected.title ? selected.title + " " : ""}${selected.name}`} · ${selected.department}`}
               </DialogDescription>
             </DialogHeader>
 

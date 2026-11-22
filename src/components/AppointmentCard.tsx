@@ -8,6 +8,7 @@ import { fetchOpenSlots } from "@/lib/api";
 import { errMsg, fmtDate, fmtRange, isFuture } from "@/lib/format";
 import type { Role } from "@/lib/auth";
 import { StatusBadge } from "./StatusBadge";
+import { apiUpdateStatus, getToken } from "@/lib/backend";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -59,7 +60,9 @@ export function AppointmentCard({
   const other = role === "student" ? a.lecturer : a.student;
   const otherLabel =
     role === "student"
-      ? `${a.lecturer.title ? a.lecturer.title + " " : ""}${a.lecturer.full_name}`
+      ? (a.lecturer.title && !a.lecturer.full_name.toLowerCase().startsWith(a.lecturer.title.toLowerCase())
+          ? `${a.lecturer.title} ${a.lecturer.full_name}`
+          : a.lecturer.full_name)
       : `${a.student.full_name}${a.student.matric_no ? " · " + a.student.matric_no : ""}`;
   const future = isFuture(a);
 
@@ -114,9 +117,13 @@ export function AppointmentCard({
                 size="sm"
                 disabled={run.isPending}
                 onClick={() =>
-                  run.mutate(() =>
-                    supabase.rpc("decide_appointment", { _appt: a.id, _approve: true }),
-                  )
+                  run.mutate(async () => {
+                    if (getToken()) {
+                      await apiUpdateStatus(a.id, "APPROVED");
+                      return { error: null };
+                    }
+                    return supabase.rpc("decide_appointment", { _appt: a.id, _approve: true });
+                  })
                 }
               >
                 Approve
@@ -133,9 +140,16 @@ export function AppointmentCard({
                   size="sm"
                   disabled={run.isPending}
                   onClick={() =>
-                    run.mutate(() =>
-                      supabase.rpc("respond_change_request", { _appt: a.id, _approve: true }),
-                    )
+                    run.mutate(async () => {
+                      if (getToken()) {
+                        await apiUpdateStatus(
+                          a.id,
+                          a.status === "cancellation_requested" ? "CANCELLED" : "APPROVED",
+                        );
+                        return { error: null };
+                      }
+                      return supabase.rpc("respond_change_request", { _appt: a.id, _approve: true });
+                    })
                   }
                 >
                   Approve {a.status === "cancellation_requested" ? "cancellation" : "new time"}
@@ -151,7 +165,13 @@ export function AppointmentCard({
               variant="secondary"
               disabled={run.isPending}
               onClick={() =>
-                run.mutate(() => supabase.rpc("complete_appointment", { _appt: a.id }))
+                run.mutate(async () => {
+                  if (getToken()) {
+                    await apiUpdateStatus(a.id, "COMPLETED");
+                    return { error: null };
+                  }
+                  return supabase.rpc("complete_appointment", { _appt: a.id });
+                })
               }
             >
               Mark completed
@@ -232,21 +252,29 @@ export function AppointmentCard({
               disabled={run.isPending || (mode === "reschedule" && (!slotId || !note.trim()))}
               onClick={() => {
                 if (mode === "reject")
-                  run.mutate(() =>
-                    supabase.rpc("decide_appointment", {
+                  run.mutate(async () => {
+                    if (getToken()) {
+                      await apiUpdateStatus(a.id, "REJECTED", note);
+                      return { error: null };
+                    }
+                    return supabase.rpc("decide_appointment", {
                       _appt: a.id,
                       _approve: false,
                       _note: note,
-                    }),
-                  );
+                    });
+                  });
                 if (mode === "decline")
-                  run.mutate(() =>
-                    supabase.rpc("respond_change_request", {
+                  run.mutate(async () => {
+                    if (getToken()) {
+                      await apiUpdateStatus(a.id, "APPROVED", note);
+                      return { error: null };
+                    }
+                    return supabase.rpc("respond_change_request", {
                       _appt: a.id,
                       _approve: false,
                       _note: note,
-                    }),
-                  );
+                    });
+                  });
                 if (mode === "cancel")
                   run.mutate(() =>
                     supabase.rpc("request_cancellation", { _appt: a.id, _reason: note }),

@@ -1,7 +1,7 @@
 from __future__ import annotations
 import uuid
 from datetime import date, time, datetime
-from typing import Optional, List
+from typing import Optional, List, Any, Union
 from pydantic import BaseModel, EmailStr, field_validator
 
 
@@ -98,14 +98,14 @@ class BookingRequest(BaseModel):
 
 
 class StatusUpdateRequest(BaseModel):
-    status: str           # "APPROVED" or "REJECTED"
+    status: str           # "APPROVED", "REJECTED", "COMPLETED", or "CANCELLED"
     lecturer_note: Optional[str] = None
 
     @field_validator("status")
     @classmethod
     def valid_status(cls, v: str) -> str:
-        if v.upper() not in ("APPROVED", "REJECTED"):
-            raise ValueError("status must be APPROVED or REJECTED")
+        if v.upper() not in ("APPROVED", "REJECTED", "COMPLETED", "CANCELLED"):
+            raise ValueError("status must be APPROVED, REJECTED, COMPLETED or CANCELLED")
         return v.upper()
 
 
@@ -130,5 +130,17 @@ class AppointmentOut(BaseModel):
     student_request_reason: Optional[str] = None
     created_at: Optional[str] = None
     updated_at: Optional[str] = None
+
+    model_config = {"from_attributes": True}
+
+
+class NotificationOut(BaseModel):
+    id: uuid.UUID
+    user_id: uuid.UUID
+    title: str
+    message: str
+    appointment_id: Optional[uuid.UUID] = None
+    is_read: bool
+    created_at: Optional[Any] = None
 
     model_config = {"from_attributes": True}

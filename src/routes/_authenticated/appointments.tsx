@@ -55,7 +55,9 @@ export const Route = createFileRoute("/_authenticated/appointments")({
             id: a.id,
             ref_code: a.ref_code,
             lecturerName: a.lecturer_name
-              ? `${a.lecturer_title || "Dr."} ${a.lecturer_name}`
+              ? (a.lecturer_title && !a.lecturer_name.toLowerCase().startsWith(a.lecturer_title.toLowerCase())
+                  ? `${a.lecturer_title} ${a.lecturer_name}`
+                  : a.lecturer_name)
               : a.ref_code
                 ? `Ref: ${a.ref_code}`
                 : `Appointment #${a.id.slice(0, 8)}`,
@@ -78,7 +80,9 @@ export const Route = createFileRoute("/_authenticated/appointments")({
         .map((d) => ({
           id: d.id,
           ref_code: null,
-          lecturerName: `${d.title || ""} ${d.name || "Lecturer"}`,
+          lecturerName: d.title && !d.name.toLowerCase().startsWith(d.title.toLowerCase())
+            ? `${d.title} ${d.name}`
+            : d.name,
           lecturerDepartment: null,
           dateStr: formatDisplayDate(d.date),
           timeStr: d.time,
