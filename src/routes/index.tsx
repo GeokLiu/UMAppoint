@@ -7,19 +7,41 @@ export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
       { title: "UMAppoint — Book Consultations with FCSIT Lecturers" },
-      { name: "description", content: "Find FCSIT lecturers, view open consultation slots and book appointments online." },
+      {
+        name: "description",
+        content: "Find FCSIT lecturers, view open consultation slots and book appointments online.",
+      },
       { property: "og:title", content: "UMAppoint — Book Consultations with FCSIT Lecturers" },
-      { property: "og:description", content: "Find FCSIT lecturers, view open consultation slots and book appointments online." },
+      {
+        property: "og:description",
+        content: "Find FCSIT lecturers, view open consultation slots and book appointments online.",
+      },
     ],
   }),
   component: Index,
 });
 
 const FEATURES = [
-  { icon: Search, title: "Find the right lecturer", text: "Search by name, department or specialisation." },
-  { icon: CalendarCheck, title: "Book open slots", text: "See real availability and request a time in seconds." },
-  { icon: Bell, title: "Stay updated", text: "Get notified when requests are approved, rejected or changed." },
-  { icon: ShieldCheck, title: "No double-booking", text: "Each slot holds one booking, so clashes can't happen." },
+  {
+    icon: Search,
+    title: "Find the right lecturer",
+    text: "Search by name, department or specialisation.",
+  },
+  {
+    icon: CalendarCheck,
+    title: "Book open slots",
+    text: "See real availability and request a time in seconds.",
+  },
+  {
+    icon: Bell,
+    title: "Stay updated",
+    text: "Get notified when requests are approved, rejected or changed.",
+  },
+  {
+    icon: ShieldCheck,
+    title: "No double-booking",
+    text: "Each slot holds one booking, so clashes can't happen.",
+  },
 ];
 
 function Index() {
@@ -34,11 +56,17 @@ function Index() {
           <span className="font-display text-xl font-semibold">UMAppoint</span>
         </div>
         {session ? (
-          <Button asChild><Link to="/dashboard">Go to dashboard</Link></Button>
+          <Button asChild>
+            <Link to="/dashboard">Go to dashboard</Link>
+          </Button>
         ) : (
           <div className="flex gap-2">
-            <Button asChild variant="ghost"><Link to="/dashboard">Open app</Link></Button>
-            <Button asChild><Link to="/dashboard">Get started</Link></Button>
+            <Button asChild variant="ghost">
+              <Link to="/dashboard">Open app</Link>
+            </Button>
+            <Button asChild>
+              <Link to="/dashboard">Get started</Link>
+            </Button>
           </div>
         )}
       </header>
@@ -52,11 +80,16 @@ function Index() {
             Lecturer consultations, booked without the email ping-pong.
           </h1>
           <p className="mt-5 text-lg text-muted-foreground">
-            Students find a lecturer, pick an open slot and send a request. Lecturers approve, reject or reschedule from one place.
+            Students find a lecturer, pick an open slot and send a request. Lecturers approve,
+            reject or reschedule from one place.
           </p>
           <div className="mt-8 flex flex-wrap gap-3">
-            <Button asChild size="lg"><Link to="/dashboard">Enter the app</Link></Button>
-            <Button asChild size="lg" variant="outline"><Link to="/lecturers">Find lecturers</Link></Button>
+            <Button asChild size="lg">
+              <Link to="/dashboard">Enter the app</Link>
+            </Button>
+            <Button asChild size="lg" variant="outline">
+              <Link to="/lecturers">Find lecturers</Link>
+            </Button>
           </div>
         </div>
         <div className="rounded-2xl bg-primary p-6 text-primary-foreground shadow-card">
@@ -65,7 +98,14 @@ function Index() {
           <p className="text-sm text-primary-foreground/80">Department of Software Engineering</p>
           <div className="mt-6 grid grid-cols-3 gap-3 text-center">
             {["Mon 10:00", "Tue 14:30", "Thu 09:00"].map((t, i) => (
-              <div key={t} className={i === 1 ? "rounded-lg bg-gold p-3 text-gold-foreground" : "rounded-lg bg-primary-foreground/10 p-3"}>
+              <div
+                key={t}
+                className={
+                  i === 1
+                    ? "rounded-lg bg-gold p-3 text-gold-foreground"
+                    : "rounded-lg bg-primary-foreground/10 p-3"
+                }
+              >
                 <p className="text-sm font-semibold">{t}</p>
                 <p className="text-[11px] opacity-80">{i === 1 ? "Selected" : "Open"}</p>
               </div>
@@ -73,7 +113,9 @@ function Index() {
           </div>
           <div className="mt-6 rounded-lg bg-primary-foreground/10 p-4 text-sm">
             <p className="font-medium">Purpose</p>
-            <p className="text-primary-foreground/80">Discuss final year project scope and timeline.</p>
+            <p className="text-primary-foreground/80">
+              Discuss final year project scope and timeline.
+            </p>
           </div>
         </div>
       </section>
@@ -89,7 +131,9 @@ function Index() {
           ))}
         </div>
       </section>
-      <footer className="py-8 text-center text-xs text-muted-foreground">© 2026 UMAppoint · FCSIT, Universiti Malaya</footer>
+      <footer className="py-8 text-center text-xs text-muted-foreground">
+        © 2026 UMAppoint · FCSIT, Universiti Malaya
+      </footer>
     </div>
   );
 }

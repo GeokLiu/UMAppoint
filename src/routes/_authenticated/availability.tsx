@@ -244,10 +244,12 @@ export const Route = createFileRoute("/_authenticated/availability")({
                 variant="outline"
                 size="sm"
                 onClick={() =>
-                  setWeek(new Date(week.getFullYear(), week.getMonth(), week.getDate() - 7))
+                  view === "weekly"
+                    ? setWeek(new Date(week.getFullYear(), week.getMonth(), week.getDate() - 7))
+                    : setWeek(new Date(week.getFullYear(), week.getMonth() - 1, 1))
                 }
               >
-                <ChevronLeft /> Previous week
+                <ChevronLeft /> {view === "weekly" ? "Previous week" : "Previous month"}
               </Button>
               <Button variant="ghost" size="sm" onClick={() => setWeek(startOfWeek(new Date()))}>
                 Today
@@ -256,10 +258,12 @@ export const Route = createFileRoute("/_authenticated/availability")({
                 variant="outline"
                 size="sm"
                 onClick={() =>
-                  setWeek(new Date(week.getFullYear(), week.getMonth(), week.getDate() + 7))
+                  view === "weekly"
+                    ? setWeek(new Date(week.getFullYear(), week.getMonth(), week.getDate() + 7))
+                    : setWeek(new Date(week.getFullYear(), week.getMonth() + 1, 1))
                 }
               >
-                Next week <ChevronRight />
+                {view === "weekly" ? "Next week" : "Next month"} <ChevronRight />
               </Button>
             </div>
             <div className="text-center">
@@ -320,7 +324,11 @@ export const Route = createFileRoute("/_authenticated/availability")({
         ) : (
           <div className="mt-5 grid grid-cols-2 gap-px overflow-hidden rounded-xl border bg-border shadow-card sm:grid-cols-4 md:grid-cols-7">
             {days.map((day) => (
-              <div key={dateKey(day)} className="min-h-28 bg-card p-2">
+              <div
+                key={dateKey(day)}
+                onClick={() => openAdd(dateKey(day))}
+                className="group min-h-28 cursor-pointer rounded-sm bg-card p-2 transition-colors hover:bg-muted/40"
+              >
                 <div className="flex items-center justify-between text-xs">
                   <span
                     className={cn(
@@ -331,7 +339,7 @@ export const Route = createFileRoute("/_authenticated/availability")({
                     {day.getDate()}
                   </span>
                   {slotsFor(day).length > 0 && (
-                    <span className="rounded-full bg-primary-soft px-1.5 text-primary">
+                    <span className="rounded-full bg-primary-soft px-1.5 font-medium text-primary">
                       {slotsFor(day).length}
                     </span>
                   )}
@@ -342,16 +350,23 @@ export const Route = createFileRoute("/_authenticated/availability")({
                     .map((slot) => (
                       <button
                         key={slot.id}
-                        onClick={() => openEdit(slot)}
-                        className="w-full truncate rounded bg-primary-soft px-1.5 py-1 text-left text-[11px] text-primary"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          openEdit(slot);
+                        }}
+                        className="w-full truncate rounded bg-primary-soft px-1.5 py-1 text-left text-[11px] text-primary hover:bg-primary-soft/80"
                       >
                         {timeValue(slot.start_time)}{" "}
                         {slot.location_type === "online" ? "· Online" : ""}
                       </button>
                     ))}
                   <button
-                    className="mt-1 text-xs text-muted-foreground hover:text-primary"
-                    onClick={() => openAdd(dateKey(day))}
+                    type="button"
+                    className="mt-1 text-xs text-muted-foreground transition-colors group-hover:text-primary"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      openAdd(dateKey(day));
+                    }}
                   >
                     + Add
                   </button>

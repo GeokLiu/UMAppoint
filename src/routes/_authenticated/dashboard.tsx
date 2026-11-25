@@ -13,7 +13,13 @@ export const Route = createFileRoute("/_authenticated/dashboard")({
 
 function Dashboard() {
   const { me } = useAuth();
-  const q = useQuery({ queryKey: ["appointments"], queryFn: fetchMyAppointments });
+  const q = useQuery({
+    queryKey: ["appointments"],
+    queryFn: fetchMyAppointments,
+    retry: false,
+    staleTime: 5_000,
+  });
+
   const list = q.data ?? [];
   const active = list.filter((a) => ACTIVE_STATUSES.includes(a.status));
   const stats = [
@@ -21,23 +27,33 @@ function Dashboard() {
     { label: "Approved", n: list.filter((a) => a.status === "approved").length },
     { label: "Completed", n: list.filter((a) => a.status === "completed").length },
   ];
+
   return (
     <div>
-      <PageHeader title={`Hello, ${me?.full_name ?? ""}`} subtitle={me?.role === "lecturer" ? "Your consultation overview" : "Your upcoming consultations"} />
+      <PageHeader
+        title={`Hello, ${me?.full_name ?? "there"}`}
+        subtitle={
+          me?.role === "lecturer" ? "Your consultation overview" : "Your upcoming consultations"
+        }
+      />
       <div className="mb-6 grid grid-cols-3 gap-4">
         {stats.map((s) => (
           <div key={s.label} className="rounded-xl border bg-card p-5 shadow-card">
             <p className="text-sm text-muted-foreground">{s.label}</p>
-            <p className="mt-1 text-3xl font-semibold">{s.n}</p>
+            <p className="mt-1 text-3xl font-semibold text-foreground">{s.n}</p>
           </div>
         ))}
       </div>
-      <h2 className="mb-3 text-lg font-semibold">Active appointments</h2>
-      {q.isLoading ? <p className="text-sm text-muted-foreground">Loading…</p> : active.length === 0 ? (
+      <h2 className="mb-3 text-lg font-semibold text-foreground">Active appointments</h2>
+      {q.isLoading ? (
+        <p className="text-sm text-muted-foreground">Loading appointments…</p>
+      ) : active.length === 0 ? (
         <EmptyState title="No active appointments" />
       ) : (
         <div className="grid gap-4 md:grid-cols-2">
-          {active.map((a) => <AppointmentCard key={a.id} a={a} role={me!.role} />)}
+          {active.map((a) => (
+            <AppointmentCard key={a.id} a={a} role={me?.role || "student"} />
+          ))}
         </div>
       )}
     </div>
