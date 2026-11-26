@@ -75,7 +75,8 @@ export const Route = createFileRoute("/_authenticated/appointments")({
         return realAppointments
           .filter((a) => {
             if (filter === "All") return true;
-            return a.status.toLowerCase() === filter.toLowerCase();
+            const expected = filter === "Cancellation Requested" ? "cancellation_requested" : filter.toLowerCase();
+            return a.status.toLowerCase() === expected;
           })
           .map((a) => ({
             id: a.id,
@@ -135,7 +136,7 @@ export const Route = createFileRoute("/_authenticated/appointments")({
         />
 
         <div className="mb-5 flex flex-wrap gap-2">
-          {["All", "Pending", "Approved", "Rejected"].map((item) => (
+          {["All", "Pending", "Approved", "Cancellation Requested", "Rejected"].map((item) => (
             <Button
               key={item}
               size="sm"
