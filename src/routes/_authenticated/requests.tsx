@@ -80,7 +80,7 @@ export const Route = createFileRoute("/_authenticated/requests")({
       refetch,
     } = useQuery({
       queryKey: ["lecturer-appointments", kind],
-      queryFn: () => apiGetLecturerAppointments(kind === "pending" ? "pending" : undefined),
+      queryFn: () => apiGetLecturerAppointments(),
       enabled: !isPreview && hasToken && me?.role === "lecturer",
       retry: false,
     });
@@ -155,7 +155,7 @@ export const Route = createFileRoute("/_authenticated/requests")({
           purpose: r.purpose,
           status: r.status,
           lecturerNote: r.lecturer_note,
-        }));
+        })).filter((item) => kind === "all" || item.status === "pending" || item.status === "cancellation_requested");
       }
 
       if (!realRequests && isPreview) {
@@ -175,7 +175,7 @@ export const Route = createFileRoute("/_authenticated/requests")({
       }
 
       return [];
-    }, [realRequests, isPreview]);
+    }, [realRequests, isPreview, kind]);
 
     return (
       <div>
@@ -185,7 +185,7 @@ export const Route = createFileRoute("/_authenticated/requests")({
           action={
             <StatusPill tone="warning">
               {realRequests
-                ? `${realRequests.filter((r) => r.status === "pending").length} pending`
+                ? `${realRequests.filter((r) => r.status === "pending" || r.status === "cancellation_requested").length} awaiting review`
                 : "Preview"}
             </StatusPill>
           }
