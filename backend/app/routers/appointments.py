@@ -8,7 +8,7 @@ from app.database import get_db
 from app.models import (
     Appointment, AppointmentStatus, AvailabilitySlot, Profile, Notification
 )
-from app.schemas import BookingRequest, AppointmentOut, StatusUpdateRequest
+from app.schemas import BookingRequest, AppointmentOut, StatusUpdateRequest, CancellationRequest
 from app.security import get_current_user, require_student, require_lecturer
 
 router = APIRouter()
@@ -136,6 +136,52 @@ def book_appointment(
 # ===========================================================================
 # GET /api/appointments  (student's own list)
 # ===========================================================================
+@router.post("/appointments/{appointment_id}/cancellation-request", response_model=AppointmentOut)
+def request_cancellation(
+    appointment_id: uuid.UUID,
+    req: CancellationRequest,
+    db: Session = Depends(get_db),
+    current_user: Profile = Depends(require_student),
+):
+    """Allow a student to request cancellation of their own pending or approved appointment."""
+    try:
+        appt = (
+            db.query(Appointment)
+            .filter(Appointment.id == appointment_id)
+            .with_for_update()
+            .first()
+        )
+        if not appt:
+            raise HTTPException(status_code=404, detail="Appointment not found")
+        if appt.student_id != current_user.id:
+            raise HTTPException(status_code=403, detail="You can only change your own appointments")
+        if appt.status not in (AppointmentStatus.pending, AppointmentStatus.approved):
+            raise HTTPException(status_code=409, detail="Only pending or approved appointments can be cancellation-requested")
+
+        appt.status = AppointmentStatus.cancellation_requested
+        appt.student_request_reason = req.reason
+        appt.updated_at = datetime.utcnow().isoformat()
+        db.add(Notification(
+            id=uuid.uuid4(),
+            user_id=appt.lecturer_id,
+            title="Cancellation requested",
+            message=f"{current_user.full_name} requested to cancel appointment {appt.ref_code or str(appt.id)[:8]}: {req.reason}",
+            appointment_id=appt.id,
+            is_read=False,
+            created_at=datetime.utcnow().isoformat(),
+        ))
+        db.commit()
+        db.refresh(appt)
+        return _to_out(appt)
+    except HTTPException:
+        db.rollback()
+        raise
+    except Exception as exc:
+        db.rollback()
+        raise HTTPException(status_code=500, detail="Failed to submit cancellation request") from exc
+
+
+
 @router.get("/appointments", response_model=list[AppointmentOut])
 def my_appointments(
     db: Session = Depends(get_db),
