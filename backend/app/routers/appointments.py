@@ -2,6 +2,7 @@ import uuid
 from datetime import date, datetime
 
 from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel, Field, field_validator
 from sqlalchemy.orm import Session
 
 from app.database import get_db
@@ -275,3 +276,119 @@ def get_appointment_history(
         .all()
     )
     return [_to_out(a) for a in appts]
+
+class StudentRequestBody(BaseModel):
+    reason: str = Field(min_length=5, max_length=1000)
+
+    @field_validator("reason")
+    @classmethod
+    def clean_reason(cls, value: str) -> str:
+        value = value.strip()
+        if len(value) < 5:
+            raise ValueError("Please provide a reason of at least 5 characters")
+        return value
+
+
+class RescheduleRequestBody(StudentRequestBody):
+    slot_id: uuid.UUID
+
+
+@router.post("/appointments/{appointment_id}/cancellation-request", response_model=AppointmentOut)
+def request_cancellation(
+    appointment_id: uuid.UUID,
+    req: StudentRequestBody,
+    db: Session = Depends(get_db),
+    current_user: Profile = Depends(require_student),
+):
+    try:
+        appt = (
+            db.query(Appointment)
+            .filter(Appointment.id == appointment_id, Appointment.student_id == current_user.id)
+            .with_for_update()
+            .first()
+        )
+        if not appt:
+            raise HTTPException(status_code=404, detail="Appointment not found")
+        if appt.status not in (AppointmentStatus.pending, AppointmentStatus.approved):
+            raise HTTPException(status_code=400, detail="Only pending or approved appointments can be cancelled")
+        appt.status = AppointmentStatus.cancellation_requested
+        appt.student_request_reason = req.reason
+        appt.updated_at = datetime.utcnow().isoformat()
+        db.add(Notification(
+            id=uuid.uuid4(),
+            user_id=appt.lecturer_id,
+            title="Cancellation requested",
+            message=f"{current_user.full_name} requested cancellation. Reason: {req.reason}",
+            appointment_id=appt.id,
+            is_read=False,
+            created_at=datetime.utcnow().isoformat(),
+        ))
+        db.commit()
+        db.refresh(appt)
+        return _to_out(appt)
+    except HTTPException:
+        db.rollback()
+        raise
+    except Exception as exc:
+        db.rollback()
+        raise HTTPException(status_code=500, detail="Failed to request cancellation") from exc
+
+
+@router.post("/appointments/{appointment_id}/reschedule-request", response_model=AppointmentOut)
+def request_reschedule(
+    appointment_id: uuid.UUID,
+    req: RescheduleRequestBody,
+    db: Session = Depends(get_db),
+    current_user: Profile = Depends(require_student),
+):
+    try:
+        appt = (
+            db.query(Appointment)
+            .filter(Appointment.id == appointment_id, Appointment.student_id == current_user.id)
+            .with_for_update()
+            .first()
+        )
+        if not appt:
+            raise HTTPException(status_code=404, detail="Appointment not found")
+        if appt.status != AppointmentStatus.approved:
+            raise HTTPException(status_code=400, detail="Only approved appointments can be rescheduled")
+        if req.slot_id == appt.slot_id:
+            raise HTTPException(status_code=400, detail="Choose a different consultation slot")
+        target = (
+            db.query(AvailabilitySlot)
+            .filter(AvailabilitySlot.id == req.slot_id, AvailabilitySlot.lecturer_id == appt.lecturer_id)
+            .with_for_update()
+            .first()
+        )
+        if not target:
+            raise HTTPException(status_code=404, detail="Alternative slot not found for this lecturer")
+        if target.slot_date < date.today() or (target.slot_date == date.today() and target.start_time <= datetime.now().time()):
+            raise HTTPException(status_code=400, detail="Alternative slot must be in the future")
+        occupied = db.query(Appointment.id).filter(
+            Appointment.slot_id == target.id,
+            Appointment.status.in_(ACTIVE),
+        ).first()
+        if occupied:
+            raise HTTPException(status_code=409, detail="Alternative slot is no longer available")
+        appt.reschedule_slot_id = target.id
+        appt.student_request_reason = req.reason
+        appt.status = AppointmentStatus.rescheduling_requested
+        appt.updated_at = datetime.utcnow().isoformat()
+        db.add(Notification(
+            id=uuid.uuid4(),
+            user_id=appt.lecturer_id,
+            title="Rescheduling requested",
+            message=f"{current_user.full_name} requested a new consultation time. Reason: {req.reason}",
+            appointment_id=appt.id,
+            is_read=False,
+            created_at=datetime.utcnow().isoformat(),
+        ))
+        db.commit()
+        db.refresh(appt)
+        return _to_out(appt)
+    except HTTPException:
+        db.rollback()
+        raise
+    except Exception as exc:
+        db.rollback()
+        raise HTTPException(status_code=500, detail="Failed to request rescheduling") from exc
