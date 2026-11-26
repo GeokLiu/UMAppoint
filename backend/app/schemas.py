@@ -150,6 +150,18 @@ class BookingRequest(BaseModel):
         return v.strip()
 
 
+class CancellationRequest(BaseModel):
+    reason: str
+
+    @field_validator("reason")
+    @classmethod
+    def reason_min_length(cls, value: str) -> str:
+        value = value.strip()
+        if len(value) < 5:
+            raise ValueError("Cancellation reason must be at least 5 characters")
+        return value
+
+
 class StatusUpdateRequest(BaseModel):
     status: str           # "APPROVED", "REJECTED", "COMPLETED", or "CANCELLED"
     lecturer_note: Optional[str] = None
