@@ -204,6 +204,28 @@ export const Route = createFileRoute("/_authenticated/appointments")({
                     Lecturer response note: {a.lecturerNote}
                   </p>
                 )}
+                {a.status === "cancellation_requested" ? (
+                  <p className="mt-4 rounded-lg bg-amber-500/10 p-3 text-sm text-amber-700 dark:text-amber-300">
+                    Your cancellation request is awaiting the lecturer response.
+                  </p>
+                ) : !isPreview && (a.status === "pending" || a.status === "approved") ? (
+                  <div className="mt-4">
+                    {cancellingId === a.id ? (
+                      <div className="space-y-2 rounded-lg border bg-muted/30 p-3">
+                        <label className="text-sm font-medium" htmlFor={"cancel-reason-" + a.id}>Reason for cancellation</label>
+                        <Textarea id={"cancel-reason-" + a.id} value={cancellationReason} onChange={(event) => setCancellationReason(event.target.value)} placeholder="Briefly explain why you need to cancel..." rows={3} maxLength={500} />
+                        <div className="flex flex-wrap gap-2">
+                          <Button size="sm" disabled={submittingCancellation || cancellationReason.trim().length < 5} onClick={() => void submitCancellation(a.id)}>
+                            {submittingCancellation ? <Loader2 className="h-4 w-4 animate-spin" /> : <XCircle className="h-4 w-4" />} Submit request
+                          </Button>
+                          <Button size="sm" variant="outline" disabled={submittingCancellation} onClick={() => { setCancellingId(null); setCancellationReason(""); }}>Keep appointment</Button>
+                        </div>
+                      </div>
+                    ) : (
+                      <Button size="sm" variant="outline" onClick={() => { setCancellingId(a.id); setCancellationReason(""); }}><XCircle className="h-4 w-4" /> Request cancellation</Button>
+                    )}
+                  </div>
+                ) : null}
               </article>
             ))}
           </div>
