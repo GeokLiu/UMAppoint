@@ -1,9 +1,10 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { CalendarDays, Clock3, MapPin, Loader2 } from "lucide-react";
 import { PageHeader } from "@/components/PageHeader";
 import { Button } from "@/components/ui/button";
+import { apiRequestCancellation } from "@/lib/backend";
 import { demoAppointments, formatDisplayDate, StatusPill } from "@/components/portal-ui";
 import { useAuth } from "@/lib/auth";
 import {
@@ -32,6 +33,7 @@ export const Route = createFileRoute("/_authenticated/appointments")({
   component: function AppointmentsPage() {
     const { me, isPreview } = useAuth();
     const [filter, setFilter] = useState("All");
+    const queryClient = useQueryClient();
 
     const hasToken = !!getToken();
 
@@ -41,6 +43,11 @@ export const Route = createFileRoute("/_authenticated/appointments")({
       queryFn: apiGetMyAppointments,
       enabled: !isPreview && hasToken && me?.role === "student",
       retry: false,
+    });
+
+    const cancelMutation = useMutation({
+      mutationFn: ({ id, reason }: { id: string; reason: string }) => apiRequestCancellation(id, reason),
+      onSuccess: () => queryClient.invalidateQueries({ queryKey: ["my-appointments"] }),
     });
 
     const items: NormalizedAppointment[] = useMemo(() => {
@@ -71,7 +78,10 @@ export const Route = createFileRoute("/_authenticated/appointments")({
           }));
       }
 
-      // 2. Demo mode / fallback: show demo appointments immediately
+      // Do not display sample records for authenticated users.
+      if (!isPreview && hasToken && me?.role === "student") return [];
+
+      // Preview mode only: show sample appointments.
       return demoAppointments
         .filter((a) => {
           if (filter === "All") return true;
@@ -172,6 +182,23 @@ export const Route = createFileRoute("/_authenticated/appointments")({
                   <span className="font-medium">Purpose: </span> {a.purpose}
                 </p>
 
+                {(a.status.toLowerCase() === "pending" || a.status.toLowerCase() === "approved") && (
+                  <div className="mt-4">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={cancelMutation.isPending}
+                      onClick={() => {
+                        const reason = window.prompt("Why do you need to cancel this appointment?");
+                        if (reason && reason.trim().length >= 5) {
+                          cancelMutation.mutate({ id: a.id, reason: reason.trim() });
+                        }
+                      }}
+                    >
+                      {cancelMutation.isPending ? "Submitting..." : "Request cancellation"}
+                    </Button>
+                  </div>
+                )}
                 {a.lecturerNote && (
                   <p className="mt-2 text-xs italic text-muted-foreground">
                     Lecturer response note: {a.lecturerNote}

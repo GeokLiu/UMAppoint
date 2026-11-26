@@ -349,3 +349,12 @@ export function fmtDate(d: string): string {
     year: "numeric",
   });
 }
+
+
+export async function apiRequestCancellation(id: string, reason: string): Promise<AppointmentOut> {
+  return req<AppointmentOut>("POST", `/api/appointments/${id}/cancellation-request`, { reason });
+}
+
+export async function apiRequestReschedule(id: string, slotId: string, reason: string): Promise<AppointmentOut> {
+  return req<AppointmentOut>("POST", `/api/appointments/${id}/reschedule-request`, { slot_id: slotId, reason });
+}
