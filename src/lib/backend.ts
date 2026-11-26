@@ -270,6 +270,13 @@ export async function apiGetMyAppointments(): Promise<AppointmentOut[]> {
   return req<AppointmentOut[]>("GET", "/api/appointments");
 }
 
+export async function apiRequestCancellation(
+  appointmentId: string,
+  reason: string,
+): Promise<AppointmentOut> {
+  return req<AppointmentOut>("POST", `/api/appointments/${appointmentId}/cancellation-request`, { reason });
+}
+
 // ── Lecturer workflow ─────────────────────────────────────────────────────────
 
 export async function apiGetLecturerAppointments(status?: string): Promise<AppointmentOut[]> {
