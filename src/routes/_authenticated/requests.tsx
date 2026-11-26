@@ -140,6 +140,19 @@ export const Route = createFileRoute("/_authenticated/requests")({
       }
     }
 
+    async function resolveCancellation(id: string, cancel: boolean) {
+      setActionId(id);
+      try {
+        await apiUpdateStatus(id, cancel ? "CANCELLED" : "APPROVED", cancel ? "Cancellation approved by lecturer." : "Cancellation request declined; appointment remains confirmed.");
+        toast.success(cancel ? "Appointment cancelled." : "Appointment kept as confirmed.");
+        qc.invalidateQueries({ queryKey: ["lecturer-appointments"] });
+        qc.invalidateQueries({ queryKey: ["notifications"] });
+      } catch (err: unknown) {
+        toast.error(err instanceof Error ? err.message : "Could not update cancellation request.");
+      } finally {
+        setActionId(null);
+      }
+    }
     const items: NormalizedRequest[] = useMemo(() => {
       if (realRequests && realRequests.length > 0) {
         return realRequests.map((r) => ({
@@ -286,7 +299,7 @@ export const Route = createFileRoute("/_authenticated/requests")({
                     </p>
                   )}
 
-                  {isPending && (
+                  {r.status === "cancellation_requested" ? (\n                    <div className="mt-4 flex flex-wrap gap-2">\n                      <Button size="sm" variant="destructive" disabled={actionId === r.id} onClick={() => void resolveCancellation(r.id, true)}>\n                        {actionId === r.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <X className="h-4 w-4" />} Confirm cancellation\n                      </Button>\n                      <Button size="sm" variant="outline" disabled={actionId === r.id} onClick={() => void resolveCancellation(r.id, false)}>Keep appointment\n                      </Button>\n                    </div>\n                  ) : isPending && (
                     <div className="mt-4 flex gap-2">
                       <Button
                         size="sm"
