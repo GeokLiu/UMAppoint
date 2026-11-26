@@ -20,6 +20,7 @@ import { useAuth } from "@/lib/auth";
 import { fetchNotifications } from "@/lib/api";
 import { initials } from "@/lib/format";
 import { cn } from "@/lib/utils";
+import { ChatAssistant } from "@/components/ChatAssistant";
 
 type NavItem = { to: string; label: string; icon: typeof Bell; search?: Record<string, string> };
 
@@ -174,6 +175,7 @@ export function AppShell() {
             <p className="text-sm text-muted-foreground p-8">Redirecting to sign in…</p>
           )}
         </main>
+        <ChatAssistant />
       </div>
     </div>
   );
