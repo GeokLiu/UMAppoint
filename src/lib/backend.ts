@@ -219,6 +219,38 @@ export async function apiGetSlots(lecturerId: string): Promise<SlotOut[]> {
   return req<SlotOut[]>("GET", `/api/lecturers/${lecturerId}/slots`);
 }
 
+export interface AvailabilitySlotPayload {
+  slot_date: string;
+  start_time: string;
+  end_time: string;
+  location_type: "physical" | "online";
+  location: string;
+  notes?: string | null;
+}
+
+export async function apiGetAvailabilitySlots(lecturerId: string): Promise<SlotOut[]> {
+  return apiGetSlots(lecturerId);
+}
+
+export async function apiCreateAvailabilitySlot(
+  payload: AvailabilitySlotPayload,
+): Promise<SlotOut> {
+  return req<SlotOut>("POST", "/api/lecturers/slots", payload);
+}
+
+export async function apiUpdateAvailabilitySlot(
+  slotId: string,
+  payload: Partial<AvailabilitySlotPayload>,
+): Promise<SlotOut> {
+  return req<SlotOut>("PATCH", `/api/lecturers/slots/${slotId}`, payload);
+}
+
+export async function apiDeleteAvailabilitySlot(
+  slotId: string,
+): Promise<{ message: string; slot_id: string }> {
+  return req<{ message: string; slot_id: string }>("DELETE", `/api/lecturers/slots/${slotId}`);
+}
+
 // ── Appointments ──────────────────────────────────────────────────────────────
 
 export async function apiBookAppointment(slotId: string, purpose: string): Promise<AppointmentOut> {
