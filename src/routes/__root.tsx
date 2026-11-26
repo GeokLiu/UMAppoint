@@ -14,6 +14,7 @@ import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { AuthProvider } from "@/lib/auth";
 import { Toaster } from "@/components/ui/sonner";
+import { ChatAssistant } from "@/components/ChatAssistant";
 
 function NotFoundComponent() {
   return (
@@ -130,6 +131,7 @@ function RootComponent() {
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
         <Outlet />
+        <ChatAssistant />
         <Toaster richColors position="top-right" />
       </AuthProvider>
     </QueryClientProvider>
