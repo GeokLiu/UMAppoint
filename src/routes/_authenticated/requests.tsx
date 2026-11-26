@@ -299,7 +299,15 @@ export const Route = createFileRoute("/_authenticated/requests")({
                     </p>
                   )}
 
-                  {r.status === "cancellation_requested" ? (\n                    <div className="mt-4 flex flex-wrap gap-2">\n                      <Button size="sm" variant="destructive" disabled={actionId === r.id} onClick={() => void resolveCancellation(r.id, true)}>\n                        {actionId === r.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <X className="h-4 w-4" />} Confirm cancellation\n                      </Button>\n                      <Button size="sm" variant="outline" disabled={actionId === r.id} onClick={() => void resolveCancellation(r.id, false)}>Keep appointment\n                      </Button>\n                    </div>\n                  ) : isPending && (
+                  {r.status === "cancellation_requested" ? (
+                    <div className="mt-4 flex flex-wrap gap-2">
+                      <Button size="sm" variant="destructive" disabled={actionId === r.id} onClick={() => void resolveCancellation(r.id, true)}>
+                        {actionId === r.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <X className="h-4 w-4" />} Confirm cancellation
+                      </Button>
+                      <Button size="sm" variant="outline" disabled={actionId === r.id} onClick={() => void resolveCancellation(r.id, false)}>Keep appointment
+                      </Button>
+                    </div>
+                  ) : isPending && (
                     <div className="mt-4 flex gap-2">
                       <Button
                         size="sm"
