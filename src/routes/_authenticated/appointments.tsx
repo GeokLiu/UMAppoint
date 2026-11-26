@@ -1,13 +1,16 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { CalendarDays, Clock3, MapPin, Loader2 } from "lucide-react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { CalendarDays, Clock3, MapPin, Loader2, XCircle } from "lucide-react";
 import { PageHeader } from "@/components/PageHeader";
 import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
+import { toast } from "sonner";
 import { demoAppointments, formatDisplayDate, StatusPill } from "@/components/portal-ui";
 import { useAuth } from "@/lib/auth";
 import {
   apiGetMyAppointments,
+  apiRequestCancellation,
   fmtDate,
   fmtTime,
   getToken,
@@ -32,6 +35,10 @@ export const Route = createFileRoute("/_authenticated/appointments")({
   component: function AppointmentsPage() {
     const { me, isPreview } = useAuth();
     const [filter, setFilter] = useState("All");
+    const [cancellingId, setCancellingId] = useState<string | null>(null);
+    const [cancellationReason, setCancellationReason] = useState("");
+    const [submittingCancellation, setSubmittingCancellation] = useState(false);
+    const queryClient = useQueryClient();
 
     const hasToken = !!getToken();
 
