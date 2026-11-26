@@ -182,6 +182,15 @@ async function req<T>(method: string, path: string, body?: unknown): Promise<T> 
   return res.json() as Promise<T>;
 }
 
+export interface ChatReply {
+  answer: string;
+  suggestions: string[];
+}
+
+export async function apiSendChatMessage(message: string): Promise<ChatReply> {
+  return req<ChatReply>("POST", "/api/chat/message", { message });
+}
+
 // ── Auth ──────────────────────────────────────────────────────────────────────
 
 export async function apiLogin(email: string, password: string): Promise<AuthResponse> {
