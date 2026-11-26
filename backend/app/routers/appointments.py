@@ -205,6 +205,7 @@ def update_appointment_status(
             AppointmentStatus.pending: [AppointmentStatus.approved, AppointmentStatus.rejected],
             AppointmentStatus.approved: [AppointmentStatus.completed],
             AppointmentStatus.cancellation_requested: [AppointmentStatus.cancelled, AppointmentStatus.approved],
+            AppointmentStatus.rescheduling_requested: [AppointmentStatus.approved, AppointmentStatus.rejected],
         }
         if appt.status not in allowed or new_status not in allowed[appt.status]:
             raise HTTPException(
@@ -212,7 +213,35 @@ def update_appointment_status(
                 detail=f"Cannot transition appointment from {appt.status.value} to {new_status.value}",
             )
 
-        appt.status = new_status
+        if appt.status == AppointmentStatus.rescheduling_requested:
+            if new_status == AppointmentStatus.approved:
+                target = (
+                    db.query(AvailabilitySlot)
+                    .filter(
+                        AvailabilitySlot.id == appt.reschedule_slot_id,
+                        AvailabilitySlot.lecturer_id == current_user.id,
+                    )
+                    .with_for_update()
+                    .first()
+                )
+                if not target:
+                    raise HTTPException(status_code=409, detail="Requested alternative slot is no longer available")
+                occupied = db.query(Appointment.id).filter(
+                    Appointment.slot_id == target.id,
+                    Appointment.id != appt.id,
+                    Appointment.status.in_(ACTIVE),
+                ).first()
+                if occupied:
+                    raise HTTPException(status_code=409, detail="Requested alternative slot has been booked")
+                appt.slot_id = target.id
+                appt.appointment_date = target.slot_date
+                appt.start_time = target.start_time
+                appt.end_time = target.end_time
+                appt.location = f"Online: {target.location}" if target.location_type == "online" else target.location
+            appt.reschedule_slot_id = None
+            appt.status = AppointmentStatus.approved
+        else:
+            appt.status = new_status
         if req.lecturer_note:
             appt.lecturer_note = req.lecturer_note.strip()
         appt.updated_at = datetime.utcnow().isoformat()
