@@ -62,6 +62,59 @@ class SlotOut(BaseModel):
 
     model_config = {"from_attributes": True}
 
+class SlotCreateRequest(BaseModel):
+    slot_date: date
+    start_time: time
+    end_time: time
+    location_type: str = "physical"
+    location: str
+    notes: Optional[str] = None
+
+    @field_validator("location_type")
+    @classmethod
+    def valid_location_type(cls, value: str) -> str:
+        value = value.strip().lower()
+        if value not in ("physical", "online"):
+            raise ValueError("location_type must be physical or online")
+        return value
+
+    @field_validator("location")
+    @classmethod
+    def valid_location(cls, value: str) -> str:
+        value = value.strip()
+        if not value:
+            raise ValueError("Location cannot be empty")
+        return value
+
+
+class SlotUpdateRequest(BaseModel):
+    slot_date: Optional[date] = None
+    start_time: Optional[time] = None
+    end_time: Optional[time] = None
+    location_type: Optional[str] = None
+    location: Optional[str] = None
+    notes: Optional[str] = None
+
+    @field_validator("location_type")
+    @classmethod
+    def valid_location_type(cls, value: Optional[str]) -> Optional[str]:
+        if value is None:
+            return value
+        value = value.strip().lower()
+        if value not in ("physical", "online"):
+            raise ValueError("location_type must be physical or online")
+        return value
+
+    @field_validator("location")
+    @classmethod
+    def valid_location(cls, value: Optional[str]) -> Optional[str]:
+        if value is None:
+            return value
+        value = value.strip()
+        if not value:
+            raise ValueError("Location cannot be empty")
+        return value
+
 
 # ---------------------------------------------------------------------------
 # Lecturers
