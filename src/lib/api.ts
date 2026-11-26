@@ -105,8 +105,9 @@ export async function fetchMyAppointments(): Promise<AppointmentFull[]> {
           ? await apiGetLecturerAppointments()
           : await apiGetMyAppointments();
 
-      if (appts && appts.length > 0) {
-        return appts.map((a) => ({
+      // A successful empty API response means this account has no appointments.
+      // Never substitute demo records for an authenticated user.
+      return appts.map((a) => ({
           id: a.id,
           ref_code: a.ref_code || a.id.slice(0, 8),
           student_id: a.student_id,
@@ -141,13 +142,13 @@ export async function fetchMyAppointments(): Promise<AppointmentFull[]> {
           },
           reschedule_slot: null,
         }));
-      }
     } catch (e) {
-      console.warn("Could not load appointments from FastAPI:", e);
+      console.error("Could not load appointments from FastAPI:", e);
+      throw e;
     }
   }
 
-  // Fallback: return demo appointments instantly so page is never stuck loading
+  // Demo appointments are only for preview mode or users without a real session.
   return demoAppointments.map((d, i) => {
     const isApproved = d.status === "Approved";
     const isChange = d.status === "Change Requested";
