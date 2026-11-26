@@ -3,7 +3,7 @@
  * HTTP client for the FastAPI backend at VITE_API_URL (default: http://localhost:8000)
  */
 
-const API_URL = (import.meta.env["VITE_API_URL"] as string | undefined) ?? "http://localhost:8000";
+const API_URL = import.meta.env.VITE_API_URL?.replace(/\/+$/, "") || "http://127.0.0.1:8002";
 
 const TOKEN_KEY = "uma_token";
 const USER_KEY = "uma_user";
@@ -141,7 +141,7 @@ async function req<T>(method: string, path: string, body?: unknown): Promise<T> 
         res = await fetch(`${fallbackBase}${path}`, init);
       } catch {
         throw new Error(
-          "Cannot connect to backend server at http://localhost:8000. Please ensure uvicorn is running on port 8000.",
+          `Cannot connect to backend server at ${API_URL}. Please ensure the UMAppoint FastAPI server is running.`,
         );
       }
     } else {
