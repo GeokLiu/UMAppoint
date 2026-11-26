@@ -50,6 +50,25 @@ export const Route = createFileRoute("/_authenticated/appointments")({
       retry: false,
     });
 
+    async function submitCancellation(appointmentId: string) {
+      if (cancellationReason.trim().length < 5) {
+        toast.error("Please provide a reason of at least 5 characters.");
+        return;
+      }
+      setSubmittingCancellation(true);
+      try {
+        await apiRequestCancellation(appointmentId, cancellationReason.trim());
+        toast.success("Cancellation request sent to your lecturer.");
+        setCancellingId(null);
+        setCancellationReason("");
+        await queryClient.invalidateQueries({ queryKey: ["my-appointments"] });
+        await queryClient.invalidateQueries({ queryKey: ["appointments"] });
+      } catch (error) {
+        toast.error(error instanceof Error ? error.message : "Could not submit cancellation request.");
+      } finally {
+        setSubmittingCancellation(false);
+      }
+    }
     const items: NormalizedAppointment[] = useMemo(() => {
       // 1. If real appointments are loaded from FastAPI:
       if (!isPreview && hasToken && realAppointments !== undefined) {
