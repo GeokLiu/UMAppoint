@@ -324,7 +324,7 @@ export const Route = createFileRoute("/_authenticated/requests")({
                         onClick={() => {
                           if (isCancellation || isReschedule) {
                             setActionId(r.id);
-                            apiUpdateStatus(r.id, "APPROVED", "Request declined; original appointment retained.")
+                            apiUpdateStatus(r.id, isReschedule ? "REJECTED" : "APPROVED", "Request declined; original appointment retained.")
                               .then(() => {
                                 toast.success(isCancellation ? "Cancellation declined" : "Rescheduling declined");
                                 qc.invalidateQueries({ queryKey: ["lecturer-appointments"] });
