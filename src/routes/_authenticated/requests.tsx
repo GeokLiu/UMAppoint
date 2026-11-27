@@ -80,7 +80,7 @@ export const Route = createFileRoute("/_authenticated/requests")({
       refetch,
     } = useQuery({
       queryKey: ["lecturer-appointments", kind],
-      queryFn: () => apiGetLecturerAppointments(kind === "pending" ? "pending" : undefined),
+      queryFn: () => apiGetLecturerAppointments(),
       enabled: !isPreview && hasToken && me?.role === "lecturer",
       retry: false,
     });
@@ -142,7 +142,10 @@ export const Route = createFileRoute("/_authenticated/requests")({
 
     const items: NormalizedRequest[] = useMemo(() => {
       if (realRequests && realRequests.length > 0) {
-        return realRequests.map((r) => ({
+        const visibleRequests = kind === "pending"
+          ? realRequests.filter((r) => ["pending", "cancellation_requested", "rescheduling_requested"].includes(r.status.toLowerCase()))
+          : realRequests;
+        return visibleRequests.map((r) => ({
           id: r.id,
           ref_code: r.ref_code,
           studentName:
@@ -175,7 +178,7 @@ export const Route = createFileRoute("/_authenticated/requests")({
       }
 
       return [];
-    }, [realRequests, isPreview]);
+    }, [realRequests, isPreview, kind]);
 
     return (
       <div>
@@ -185,7 +188,7 @@ export const Route = createFileRoute("/_authenticated/requests")({
           action={
             <StatusPill tone="warning">
               {realRequests
-                ? `${realRequests.filter((r) => r.status === "pending").length} pending`
+                ? `${realRequests.filter((r) => ["pending", "cancellation_requested", "rescheduling_requested"].includes(r.status.toLowerCase())).length} pending`
                 : "Preview"}
             </StatusPill>
           }
@@ -222,7 +225,10 @@ export const Route = createFileRoute("/_authenticated/requests")({
         ) : (
           <div className="space-y-3">
             {items.map((r: NormalizedRequest) => {
-              const isPending = (r.status || "").toLowerCase() === "pending";
+              const requestStatus = (r.status || "").toLowerCase();
+              const isPending = requestStatus === "pending";
+              const isCancellation = requestStatus === "cancellation_requested";
+              const isReschedule = requestStatus === "rescheduling_requested";
 
               return (
                 <article key={r.id} className="rounded-xl border bg-card p-5 shadow-card">
@@ -286,28 +292,52 @@ export const Route = createFileRoute("/_authenticated/requests")({
                     </p>
                   )}
 
-                  {isPending && (
-                    <div className="mt-4 flex gap-2">
+                  {(isPending || isCancellation || isReschedule) && (
+                    <div className="mt-4 flex flex-wrap gap-2">
                       <Button
                         size="sm"
                         disabled={actionId === r.id}
-                        onClick={() => handleApprove(r.id)}
+                        onClick={async () => {
+                          if (isCancellation) {
+                            setActionId(r.id);
+                            try {
+                              await apiUpdateStatus(r.id, "CANCELLED", "Cancellation request approved.");
+                              toast.success("Cancellation approved");
+                              qc.invalidateQueries({ queryKey: ["lecturer-appointments"] });
+                            } catch (err) {
+                              toast.error(err instanceof Error ? err.message : "Unable to approve cancellation");
+                            } finally {
+                              setActionId(null);
+                            }
+                          } else {
+                            await handleApprove(r.id);
+                          }
+                        }}
                       >
-                        {actionId === r.id ? (
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                        ) : (
-                          <Check className="h-4 w-4 mr-1" />
-                        )}
-                        Approve
+                        {actionId === r.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4 mr-1" />}
+                        {isCancellation ? "Approve cancellation" : isReschedule ? "Approve new time" : "Approve"}
                       </Button>
                       <Button
                         size="sm"
                         variant="outline"
                         disabled={actionId === r.id}
-                        onClick={() => setRejecting(r.id)}
+                        onClick={() => {
+                          if (isCancellation || isReschedule) {
+                            setActionId(r.id);
+                            apiUpdateStatus(r.id, "APPROVED", "Request declined; original appointment retained.")
+                              .then(() => {
+                                toast.success(isCancellation ? "Cancellation declined" : "Rescheduling declined");
+                                qc.invalidateQueries({ queryKey: ["lecturer-appointments"] });
+                              })
+                              .catch((err) => toast.error(err instanceof Error ? err.message : "Unable to decline request"))
+                              .finally(() => setActionId(null));
+                          } else {
+                            setRejecting(r.id);
+                          }
+                        }}
                       >
                         <X className="h-4 w-4 mr-1" />
-                        Reject
+                        {isCancellation ? "Keep appointment" : isReschedule ? "Decline new time" : "Reject"}
                       </Button>
                     </div>
                   )}
