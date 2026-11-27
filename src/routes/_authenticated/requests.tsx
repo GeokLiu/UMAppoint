@@ -81,7 +81,7 @@ export const Route = createFileRoute("/_authenticated/requests")({
       refetch,
     } = useQuery({
       queryKey: ["lecturer-appointments", kind],
-      queryFn: () => apiGetLecturerAppointments(kind === "pending" ? "pending" : undefined),
+      queryFn: () => apiGetLecturerAppointments(),
       enabled: !isPreview && hasToken && me?.role === "lecturer",
       retry: false,
     });
@@ -144,7 +144,9 @@ export const Route = createFileRoute("/_authenticated/requests")({
 
     const items: NormalizedRequest[] = useMemo(() => {
       if (realRequests && realRequests.length > 0) {
-        return realRequests.map((r) => ({
+        return realRequests
+          .filter((r) => kind === "all" || ["pending", "cancellation_requested", "rescheduling_requested"].includes(r.status.toLowerCase()))
+          .map((r) => ({
           id: r.id,
           ref_code: r.ref_code,
           studentName:
@@ -189,7 +191,7 @@ export const Route = createFileRoute("/_authenticated/requests")({
           action={
             <StatusPill tone="warning">
               {realRequests
-                ? `${realRequests.filter((r) => r.status === "pending").length} pending`
+                ? `${realRequests.filter((r) => ["pending", "cancellation_requested", "rescheduling_requested"].includes(r.status.toLowerCase())).length} pending`
                 : "Preview"}
             </StatusPill>
           }
