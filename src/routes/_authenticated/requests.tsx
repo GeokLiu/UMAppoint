@@ -127,12 +127,20 @@ export const Route = createFileRoute("/_authenticated/requests")({
       setActionId(rejecting);
       try {
         const requestStatus = realRequests?.find((request) => request.id === rejecting)?.status?.toLowerCase();
-        await apiUpdateStatus(rejecting, "REJECTED", reason);
-        toast.success(requestStatus === "rescheduling_requested" ? "Reschedule request declined" : "Appointment rejected", {
-          description: requestStatus === "rescheduling_requested"
-            ? "The original approved appointment remains unchanged."
-            : "The requested slot has been released back to OPEN for other students.",
-        });
+        const decision = requestStatus === "cancellation_requested" ? "APPROVED" : "REJECTED";
+        await apiUpdateStatus(rejecting, decision, reason);
+        toast.success(
+          requestStatus === "rescheduling_requested"
+            ? "Reschedule request declined"
+            : requestStatus === "cancellation_requested"
+              ? "Cancellation request declined"
+              : "Appointment rejected",
+          {
+            description: requestStatus === "rescheduling_requested" || requestStatus === "cancellation_requested"
+              ? "The original approved appointment remains unchanged."
+              : "The requested slot has been released back to OPEN for other students.",
+          },
+        );
         setRejecting(null);
         setReason("");
         qc.invalidateQueries({ queryKey: ["lecturer-appointments"] });
@@ -325,17 +333,19 @@ export const Route = createFileRoute("/_authenticated/requests")({
                         )}
                         {actionLabel}
                       </Button>
-                      {currentStatus !== "cancellation_requested" && (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          disabled={actionId === r.id}
-                          onClick={() => setRejecting(r.id)}
-                        >
-                          <X className="h-4 w-4 mr-1" />
-                          {currentStatus === "rescheduling_requested" ? "Decline new time" : "Reject"}
-                        </Button>
-                      )}
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        disabled={actionId === r.id}
+                        onClick={() => setRejecting(r.id)}
+                      >
+                        <X className="h-4 w-4 mr-1" />
+                        {currentStatus === "cancellation_requested"
+                          ? "Keep appointment"
+                          : currentStatus === "rescheduling_requested"
+                            ? "Decline new time"
+                            : "Reject"}
+                      </Button>
                     </div>
                   )}
                 </article>
@@ -348,9 +358,15 @@ export const Route = createFileRoute("/_authenticated/requests")({
         <Dialog open={!!rejecting} onOpenChange={(o) => !o && setRejecting(null)}>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>{realRequests?.find((request) => request.id === rejecting)?.status === "rescheduling_requested" ? "Decline reschedule request" : "Reject booking request"}</DialogTitle>
+              <DialogTitle>
+                {realRequests?.find((request) => request.id === rejecting)?.status === "rescheduling_requested"
+                  ? "Decline reschedule request"
+                  : realRequests?.find((request) => request.id === rejecting)?.status === "cancellation_requested"
+                    ? "Decline cancellation request"
+                    : "Reject booking request"}
+              </DialogTitle>
               <DialogDescription>
-                Provide a short reason so the student understands your decision. Declining a reschedule keeps the original approved appointment; rejecting a new booking releases its requested slot.
+                Provide a short reason so the student understands your decision. Declining a change request keeps the original approved appointment; rejecting a new booking releases its requested slot.
               </DialogDescription>
             </DialogHeader>
             <Textarea
