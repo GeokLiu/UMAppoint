@@ -99,7 +99,8 @@ export const Route = createFileRoute("/_authenticated/requests")({
 
       setActionId(id);
       try {
-        await apiUpdateStatus(id, "APPROVED");
+        const requestStatus = realRequests?.find((request) => request.id === id)?.status?.toLowerCase();
+        await apiUpdateStatus(id, requestStatus === "cancellation_requested" ? "CANCELLED" : "APPROVED");
         toast.success("Appointment approved!", {
           description: "The time slot is now confirmed for this student.",
         });
