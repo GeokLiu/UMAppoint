@@ -3,6 +3,7 @@ import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { CalendarDays, Clock3, MapPin, Loader2 } from "lucide-react";
 import { PageHeader } from "@/components/PageHeader";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { apiGetSlots, apiRequestCancellation, apiRequestReschedule } from "@/lib/backend";
 import { demoAppointments, formatDisplayDate, StatusPill } from "@/components/portal-ui";
@@ -50,7 +51,9 @@ export const Route = createFileRoute("/_authenticated/appointments")({
       onSuccess: () => {
         queryClient.invalidateQueries({ queryKey: ["my-appointments"] });
         queryClient.invalidateQueries({ queryKey: ["notifications"] });
+        toast.success("Cancellation request sent to the lecturer.");
       },
+      onError: (error) => toast.error(error instanceof Error ? error.message : "Unable to request cancellation."),
     });
     const rescheduleMutation = useMutation({
       mutationFn: ({ id, slotId, reason }: { id: string; slotId: string; reason: string }) =>
@@ -58,7 +61,9 @@ export const Route = createFileRoute("/_authenticated/appointments")({
       onSuccess: () => {
         queryClient.invalidateQueries({ queryKey: ["my-appointments"] });
         queryClient.invalidateQueries({ queryKey: ["notifications"] });
+        toast.success("Rescheduling request sent to the lecturer.");
       },
+      onError: (error) => toast.error(error instanceof Error ? error.message : "Unable to request rescheduling."),
     });
 
     async function requestReschedule(appointment: AppointmentOut) {
