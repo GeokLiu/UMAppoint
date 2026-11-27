@@ -236,7 +236,8 @@ export const Route = createFileRoute("/_authenticated/lecturers")({
           </div>
           <p className="hidden text-xs text-muted-foreground sm:block">
             {backendLecturers
-              ? isPreview ? "Preview data" : "Live data from UMAppoint backend"}
+              ? (isPreview ? "Preview data" : "Live data from UMAppoint backend")
+              : "Demo data"}
           </p>
         </div>
 
