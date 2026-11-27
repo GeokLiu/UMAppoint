@@ -46,7 +46,7 @@ def chat_message(
     if any(term in question for term in ("my appointment", "my booking", "upcoming appointment", "booking status")):
         query = db.query(Appointment).filter(
             (Appointment.student_id == current_user.id) | (Appointment.lecturer_id == current_user.id)
-        ).order_by(Appointment.appointment_date.asc(), Appointment.start_time.asc())
+        ).order_by(Appointment.appointment_date.desc(), Appointment.start_time.desc())
         records = query.limit(10).all()
         if not records:
             return ChatReply(
