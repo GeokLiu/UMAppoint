@@ -85,6 +85,7 @@ def list_lecturers(
 
     lecturers = query.all()
     today = date.today()
+    current_time = datetime.now().time().replace(tzinfo=None)
 
     result = []
     for lec in lecturers:
@@ -96,7 +97,8 @@ def list_lecturers(
         open_slots = [
             _to_slot_out(s, True)
             for s in future_slots
-            if not _slot_is_booked(s.id, db)
+            if (s.slot_date > today or s.start_time > current_time)
+            and not _slot_is_booked(s.id, db)
         ]
         result.append(_build_lecturer_out(lec, open_slots))
 
@@ -116,12 +118,18 @@ def get_slots(
     if not lec:
         raise HTTPException(status_code=404, detail="Lecturer not found")
 
+    today = date.today()
+    current_time = datetime.now().time().replace(tzinfo=None)
     slots = db.query(AvailabilitySlot).filter(
         AvailabilitySlot.lecturer_id == lecturer_id,
-        AvailabilitySlot.slot_date >= date.today(),
+        AvailabilitySlot.slot_date >= today,
     ).order_by(AvailabilitySlot.slot_date, AvailabilitySlot.start_time).all()
 
-    return [_to_slot_out(s, not _slot_is_booked(s.id, db)) for s in slots]
+    future_slots = [
+        slot for slot in slots
+        if slot.slot_date > today or slot.start_time > current_time
+    ]
+    return [_to_slot_out(s, not _slot_is_booked(s.id, db)) for s in future_slots]
 
 
 
