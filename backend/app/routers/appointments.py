@@ -123,6 +123,15 @@ def book_appointment(
             updated_at=now,
         )
         db.add(appt)
+        db.add(Notification(
+            id=uuid.uuid4(),
+            user_id=slot.lecturer_id,
+            title="New appointment request",
+            message=f"{current_user.full_name} requested a consultation on {slot.slot_date} at {slot.start_time}.",
+            appointment_id=appt.id,
+            is_read=False,
+            created_at=now,
+        ))
         db.commit()
         db.refresh(appt)
         return _to_out(appt)
