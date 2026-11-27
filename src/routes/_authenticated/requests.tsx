@@ -38,6 +38,7 @@ interface NormalizedRequest {
   status: string;
   lecturerNote: string | null;
   studentReason: string | null;
+  proposedTime: string | null;
 }
 
 const DEMO_REQUESTS = [
@@ -160,6 +161,9 @@ export const Route = createFileRoute("/_authenticated/requests")({
           status: r.status,
           lecturerNote: r.lecturer_note,
           studentReason: r.student_request_reason ?? null,
+          proposedTime: r.reschedule_date
+            ? `${fmtDate(r.reschedule_date)} · ${fmtTime(r.reschedule_start_time ?? "")}–${fmtTime(r.reschedule_end_time ?? "")} · ${r.reschedule_location ?? "Location to be confirmed"}`
+            : null,
         }));
       }
 
@@ -177,6 +181,7 @@ export const Route = createFileRoute("/_authenticated/requests")({
           status: d.status,
           lecturerNote: null,
           studentReason: null,
+          proposedTime: null,
         }));
       }
 
@@ -288,6 +293,11 @@ export const Route = createFileRoute("/_authenticated/requests")({
                     {r.purpose}
                   </p>
 
+                  {r.proposedTime && (
+                    <p className="mt-3 rounded-lg border border-primary/20 bg-primary/5 p-3 text-sm">
+                      <span className="font-medium">Requested new time: </span>{r.proposedTime}
+                    </p>
+                  )}
                   {r.studentReason && (
                     <p className="mt-3 rounded-lg border border-warning/30 bg-warning/5 p-3 text-sm">
                       <span className="font-medium">Student request reason: </span>{r.studentReason}
