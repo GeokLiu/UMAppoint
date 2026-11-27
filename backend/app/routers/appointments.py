@@ -246,30 +246,26 @@ def update_appointment_status(
             appt.lecturer_note = req.lecturer_note.strip()
         appt.updated_at = datetime.utcnow().isoformat()
 
-        # Create notification for student
-        try:
-            status_labels = {
-                AppointmentStatus.approved: ("Appointment approved", "approved"),
-                AppointmentStatus.rejected: ("Appointment rejected", "rejected"),
-                AppointmentStatus.completed: ("Consultation completed", "completed"),
-                AppointmentStatus.cancelled: ("Appointment cancelled", "cancelled"),
-            }
-            if new_status in status_labels:
-                title, verb = status_labels[new_status]
-                date_str = appt.appointment_date.strftime("%d %b %Y") if hasattr(appt.appointment_date, "strftime") else str(appt.appointment_date)
-                notif = Notification(
-                    id=uuid.uuid4(),
-                    user_id=appt.student_id,
-                    title=title,
-                    message=f"Your consultation with {current_user.full_name} on {date_str} is now {verb}.",
-                    appointment_id=appt.id,
-                    is_read=False,
-                    created_at=datetime.utcnow().isoformat(),
-                )
-                db.add(notif)
-        except Exception:
-            pass  # Do not block status update if notification logging fails
-
+        # Notify the student about the lecturer's decision.
+        if appt.status == AppointmentStatus.cancelled:
+            title, message = "Appointment cancelled", "Your cancellation request was approved."
+        elif appt.status == AppointmentStatus.rejected:
+            title, message = "Appointment rejected", "Your lecturer declined the appointment or rescheduling request."
+        elif appt.status == AppointmentStatus.completed:
+            title, message = "Consultation completed", "Your consultation has been marked as completed."
+        elif appt.status == AppointmentStatus.approved:
+            title, message = "Appointment updated", "Your lecturer has approved or retained your appointment."
+        else:
+            title, message = "Appointment updated", "Your lecturer has updated your appointment."
+        db.add(Notification(
+            id=uuid.uuid4(),
+            user_id=appt.student_id,
+            title=title,
+            message=message,
+            appointment_id=appt.id,
+            is_read=False,
+            created_at=datetime.utcnow().isoformat(),
+        ))
         db.commit()
         db.refresh(appt)
         return _to_out(appt)
