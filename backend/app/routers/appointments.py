@@ -274,6 +274,7 @@ def update_appointment_status(
 
         db.commit()
         db.refresh(appt)
+        send_telegram_alert(f"UMAppoint: appointment {appt.ref_code or appt.id} status changed to {appt.status.value}.")
         return _to_out(appt)
     except HTTPException:
         db.rollback()
@@ -356,6 +357,7 @@ def request_cancellation(
         ))
         db.commit()
         db.refresh(appt)
+        send_telegram_alert(f"UMAppoint: cancellation requested for {appt.ref_code or appt.id}. Please review in the lecturer portal.")
         return _to_out(appt)
     except HTTPException:
         db.rollback()
