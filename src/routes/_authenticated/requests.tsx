@@ -37,6 +37,7 @@ interface NormalizedRequest {
   purpose: string;
   status: string;
   lecturerNote: string | null;
+  studentReason: string | null;
 }
 
 const DEMO_REQUESTS = [
@@ -155,6 +156,7 @@ export const Route = createFileRoute("/_authenticated/requests")({
           purpose: r.purpose,
           status: r.status,
           lecturerNote: r.lecturer_note,
+          studentReason: r.student_request_reason ?? null,
         }));
       }
 
@@ -171,6 +173,7 @@ export const Route = createFileRoute("/_authenticated/requests")({
           purpose: d.purpose,
           status: d.status,
           lecturerNote: null,
+          studentReason: null,
         }));
       }
 
@@ -222,7 +225,9 @@ export const Route = createFileRoute("/_authenticated/requests")({
         ) : (
           <div className="space-y-3">
             {items.map((r: NormalizedRequest) => {
-              const isPending = (r.status || "").toLowerCase() === "pending";
+              const currentStatus = (r.status || "").toLowerCase();
+              const isPending = ["pending", "cancellation_requested", "rescheduling_requested"].includes(currentStatus);
+              const actionLabel = currentStatus === "cancellation_requested" ? "Confirm cancellation" : currentStatus === "rescheduling_requested" ? "Approve new time" : "Approve";
 
               return (
                 <article key={r.id} className="rounded-xl border bg-card p-5 shadow-card">
@@ -280,6 +285,11 @@ export const Route = createFileRoute("/_authenticated/requests")({
                     {r.purpose}
                   </p>
 
+                  {r.studentReason && (
+                    <p className="mt-3 rounded-lg border border-warning/30 bg-warning/5 p-3 text-sm">
+                      <span className="font-medium">Student request reason: </span>{r.studentReason}
+                    </p>
+                  )}
                   {r.lecturerNote && (
                     <p className="mt-2 text-xs text-muted-foreground italic">
                       Lecturer note: {r.lecturerNote}
@@ -298,17 +308,19 @@ export const Route = createFileRoute("/_authenticated/requests")({
                         ) : (
                           <Check className="h-4 w-4 mr-1" />
                         )}
-                        Approve
+                        {actionLabel}
                       </Button>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        disabled={actionId === r.id}
-                        onClick={() => setRejecting(r.id)}
-                      >
-                        <X className="h-4 w-4 mr-1" />
-                        Reject
-                      </Button>
+                      {currentStatus !== "cancellation_requested" && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          disabled={actionId === r.id}
+                          onClick={() => setRejecting(r.id)}
+                        >
+                          <X className="h-4 w-4 mr-1" />
+                          {currentStatus === "rescheduling_requested" ? "Decline new time" : "Reject"}
+                        </Button>
+                      )}
                     </div>
                   )}
                 </article>
