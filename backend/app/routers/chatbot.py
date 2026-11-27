@@ -43,6 +43,28 @@ def chat_message(
     """
     question = req.message.strip().lower()
 
+    if any(term in question for term in ("my appointment", "my booking", "upcoming appointment", "booking status")):
+        query = db.query(Appointment).filter(
+            (Appointment.student_id == current_user.id) | (Appointment.lecturer_id == current_user.id)
+        ).order_by(Appointment.appointment_date.asc(), Appointment.start_time.asc())
+        records = query.limit(10).all()
+        if not records:
+            return ChatReply(
+                answer="There are no appointments linked to your account yet. You can book a consultation from Find Lecturers or wait for a student request in Booking Requests.",
+                suggestions=["Show available slots", "How do I book an appointment?"],
+            )
+        lines = []
+        for item in records[:5]:
+            date_text = item.appointment_date.isoformat()
+            start_text = item.start_time.strftime("%H:%M")
+            end_text = item.end_time.strftime("%H:%M")
+            status_text = item.status.value if hasattr(item.status, "value") else str(item.status)
+            lines.append(f"{item.ref_code or str(item.id)[:8]} — {date_text}, {start_text}-{end_text}: {status_text.replace('_', ' ').title()}")
+        return ChatReply(
+            answer="Here are your latest appointments:\n" + "\n".join(lines),
+            suggestions=["What does pending mean?", "Show available slots"],
+        )
+
     if any(term in question for term in ("available", "availability", "free slot", "open slot")):
         rows = (
             db.query(AvailabilitySlot, Lecturer, Profile)
