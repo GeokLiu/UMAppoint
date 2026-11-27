@@ -200,6 +200,7 @@ def update_appointment_status(
         if appt.lecturer_id != current_user.id:
             raise HTTPException(status_code=403, detail="Not your appointment")
 
+        previous_status = appt.status
         new_status = AppointmentStatus(req.status.lower())
 
         # Validate allowed transitions
@@ -256,8 +257,13 @@ def update_appointment_status(
                 AppointmentStatus.completed: ("Consultation completed", "completed"),
                 AppointmentStatus.cancelled: ("Appointment cancelled", "cancelled"),
             }
-            if new_status in status_labels:
-                title, verb = status_labels[new_status]
+            if previous_status == AppointmentStatus.rescheduling_requested and new_status == AppointmentStatus.rejected:
+                title, verb = ("Rescheduling request declined", "declined; your original booking remains confirmed")
+            elif previous_status == AppointmentStatus.cancellation_requested and new_status == AppointmentStatus.approved:
+                title, verb = ("Cancellation request declined", "remains confirmed")
+            else:
+                title, verb = status_labels.get(new_status, (None, None))
+            if title:
                 date_str = appt.appointment_date.strftime("%d %b %Y") if hasattr(appt.appointment_date, "strftime") else str(appt.appointment_date)
                 notif = Notification(
                     id=uuid.uuid4(),
