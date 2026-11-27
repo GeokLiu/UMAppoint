@@ -79,15 +79,12 @@ export const Route = createFileRoute("/_authenticated/requests")({
     const {
       data: realRequests,
       isLoading,
-      refetch,
     } = useQuery({
       queryKey: ["lecturer-appointments", kind],
       queryFn: () => apiGetLecturerAppointments(),
       enabled: !isPreview && hasToken && me?.role === "lecturer",
       retry: false,
     });
-
-    const isPendingKind = kind === "pending";
 
     // ── Approve appointment (Step 4) ────────────────────────────────────────
     async function handleApprove(id: string) {
@@ -102,8 +99,10 @@ export const Route = createFileRoute("/_authenticated/requests")({
       try {
         const requestStatus = realRequests?.find((request) => request.id === id)?.status?.toLowerCase();
         await apiUpdateStatus(id, requestStatus === "cancellation_requested" ? "CANCELLED" : "APPROVED");
-        toast.success("Appointment approved!", {
-          description: "The time slot is now confirmed for this student.",
+        toast.success(requestStatus === "cancellation_requested" ? "Appointment cancellation confirmed" : "Appointment approved!", {
+          description: requestStatus === "cancellation_requested"
+            ? "The appointment has been cancelled and its slot is available again."
+            : "The consultation time is now confirmed for this student.",
         });
         qc.invalidateQueries({ queryKey: ["lecturer-appointments"] });
       } catch (err: unknown) {
@@ -189,7 +188,7 @@ export const Route = createFileRoute("/_authenticated/requests")({
       }
 
       return [];
-    }, [realRequests, isPreview]);
+    }, [realRequests, isPreview, kind]);
 
     return (
       <div>
