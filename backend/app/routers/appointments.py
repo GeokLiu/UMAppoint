@@ -59,6 +59,10 @@ def _to_out(a: Appointment) -> AppointmentOut:
         status=a.status.value if hasattr(a.status, "value") else str(a.status),
         lecturer_note=a.lecturer_note,
         student_request_reason=a.student_request_reason,
+        reschedule_date=a.reschedule_slot.slot_date if getattr(a, "reschedule_slot", None) else None,
+        reschedule_start_time=a.reschedule_slot.start_time if getattr(a, "reschedule_slot", None) else None,
+        reschedule_end_time=a.reschedule_slot.end_time if getattr(a, "reschedule_slot", None) else None,
+        reschedule_location=a.reschedule_slot.location if getattr(a, "reschedule_slot", None) else None,
         created_at=str(a.created_at) if a.created_at else None,
         updated_at=str(a.updated_at) if a.updated_at else None,
     )
