@@ -11,6 +11,7 @@ from app.models import (
 )
 from app.schemas import BookingRequest, AppointmentOut, StatusUpdateRequest
 from app.security import get_current_user, require_student, require_lecturer
+from app.telegram import send_telegram_alert
 
 router = APIRouter()
 
@@ -125,6 +126,7 @@ def book_appointment(
         db.add(appt)
         db.commit()
         db.refresh(appt)
+        send_telegram_alert(f"UMAppoint: new booking request {appt.ref_code} for {appt.appointment_date} ({appt.start_time}-{appt.end_time}). Please review in the lecturer portal.")
         return _to_out(appt)
     except HTTPException:
         db.rollback()
@@ -414,6 +416,7 @@ def request_reschedule(
         ))
         db.commit()
         db.refresh(appt)
+        send_telegram_alert(f"UMAppoint: rescheduling requested for {appt.ref_code or appt.id}. Please review in the lecturer portal.")
         return _to_out(appt)
     except HTTPException:
         db.rollback()
