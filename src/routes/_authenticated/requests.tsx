@@ -127,9 +127,12 @@ export const Route = createFileRoute("/_authenticated/requests")({
 
       setActionId(rejecting);
       try {
+        const requestStatus = realRequests?.find((request) => request.id === rejecting)?.status?.toLowerCase();
         await apiUpdateStatus(rejecting, "REJECTED", reason);
-        toast.success("Appointment rejected", {
-          description: "The slot has been released back to OPEN for other students.",
+        toast.success(requestStatus === "rescheduling_requested" ? "Reschedule request declined" : "Appointment rejected", {
+          description: requestStatus === "rescheduling_requested"
+            ? "The original approved appointment remains unchanged."
+            : "The requested slot has been released back to OPEN for other students.",
         });
         setRejecting(null);
         setReason("");
@@ -346,10 +349,9 @@ export const Route = createFileRoute("/_authenticated/requests")({
         <Dialog open={!!rejecting} onOpenChange={(o) => !o && setRejecting(null)}>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Reject booking request</DialogTitle>
+              <DialogTitle>{realRequests?.find((request) => request.id === rejecting)?.status === "rescheduling_requested" ? "Decline reschedule request" : "Reject booking request"}</DialogTitle>
               <DialogDescription>
-                Provide a short reason so the student understands why. The time slot will
-                automatically be reopened for other students.
+                Provide a short reason so the student understands your decision. Declining a reschedule keeps the original approved appointment; rejecting a new booking releases its requested slot.
               </DialogDescription>
             </DialogHeader>
             <Textarea
@@ -363,7 +365,7 @@ export const Route = createFileRoute("/_authenticated/requests")({
                 Cancel
               </Button>
               <Button variant="destructive" disabled={!reason.trim()} onClick={handleReject}>
-                Confirm Rejection & Reopen Slot
+                Confirm Decision
               </Button>
             </DialogFooter>
           </DialogContent>
