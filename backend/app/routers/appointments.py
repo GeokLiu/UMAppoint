@@ -128,6 +128,24 @@ def book_appointment(
             updated_at=now,
         )
         db.add(appt)
+        db.add(Notification(
+            id=uuid.uuid4(),
+            user_id=slot.lecturer_id,
+            title="New booking request",
+            message=f"{current_user.full_name} requested a consultation on {slot.slot_date} from {slot.start_time.strftime('%H:%M')} to {slot.end_time.strftime('%H:%M')}.",
+            appointment_id=appt.id,
+            is_read=False,
+            created_at=now,
+        ))
+        db.add(Notification(
+            id=uuid.uuid4(),
+            user_id=current_user.id,
+            title="Booking request submitted",
+            message=f"Your request {ref_code} has been sent to the lecturer and is awaiting a decision.",
+            appointment_id=appt.id,
+            is_read=False,
+            created_at=now,
+        ))
         db.commit()
         db.refresh(appt)
         send_telegram_alert(f"UMAppoint: new booking request {appt.ref_code} for {appt.appointment_date} ({appt.start_time}-{appt.end_time}). Please review in the lecturer portal.")
