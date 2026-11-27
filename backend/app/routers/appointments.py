@@ -11,6 +11,7 @@ from app.models import (
 )
 from app.schemas import BookingRequest, AppointmentOut, StatusUpdateRequest
 from app.security import get_current_user, require_student, require_lecturer
+from app.telegram import send_telegram_alert
 
 router = APIRouter()
 
@@ -58,6 +59,10 @@ def _to_out(a: Appointment) -> AppointmentOut:
         status=a.status.value if hasattr(a.status, "value") else str(a.status),
         lecturer_note=a.lecturer_note,
         student_request_reason=a.student_request_reason,
+        reschedule_date=a.reschedule_slot.slot_date if getattr(a, "reschedule_slot", None) else None,
+        reschedule_start_time=a.reschedule_slot.start_time if getattr(a, "reschedule_slot", None) else None,
+        reschedule_end_time=a.reschedule_slot.end_time if getattr(a, "reschedule_slot", None) else None,
+        reschedule_location=a.reschedule_slot.location if getattr(a, "reschedule_slot", None) else None,
         created_at=str(a.created_at) if a.created_at else None,
         updated_at=str(a.updated_at) if a.updated_at else None,
     )
@@ -123,8 +128,27 @@ def book_appointment(
             updated_at=now,
         )
         db.add(appt)
+        db.add(Notification(
+            id=uuid.uuid4(),
+            user_id=slot.lecturer_id,
+            title="New booking request",
+            message=f"{current_user.full_name} requested a consultation on {slot.slot_date} from {slot.start_time.strftime('%H:%M')} to {slot.end_time.strftime('%H:%M')}.",
+            appointment_id=appt.id,
+            is_read=False,
+            created_at=now,
+        ))
+        db.add(Notification(
+            id=uuid.uuid4(),
+            user_id=current_user.id,
+            title="Booking request submitted",
+            message=f"Your request {ref_code} has been sent to the lecturer and is awaiting a decision.",
+            appointment_id=appt.id,
+            is_read=False,
+            created_at=now,
+        ))
         db.commit()
         db.refresh(appt)
+        send_telegram_alert(f"UMAppoint: new booking request {appt.ref_code} for {appt.appointment_date} ({appt.start_time}-{appt.end_time}). Please review in the lecturer portal.")
         return _to_out(appt)
     except HTTPException:
         db.rollback()
@@ -198,6 +222,7 @@ def update_appointment_status(
         if appt.lecturer_id != current_user.id:
             raise HTTPException(status_code=403, detail="Not your appointment")
 
+        previous_status = appt.status
         new_status = AppointmentStatus(req.status.lower())
 
         # Validate allowed transitions
@@ -254,8 +279,13 @@ def update_appointment_status(
                 AppointmentStatus.completed: ("Consultation completed", "completed"),
                 AppointmentStatus.cancelled: ("Appointment cancelled", "cancelled"),
             }
-            if new_status in status_labels:
-                title, verb = status_labels[new_status]
+            if previous_status == AppointmentStatus.rescheduling_requested and new_status == AppointmentStatus.rejected:
+                title, verb = ("Rescheduling request declined", "declined; your original booking remains confirmed")
+            elif previous_status == AppointmentStatus.cancellation_requested and new_status == AppointmentStatus.approved:
+                title, verb = ("Cancellation request declined", "remains confirmed")
+            else:
+                title, verb = status_labels.get(new_status, (None, None))
+            if title:
                 date_str = appt.appointment_date.strftime("%d %b %Y") if hasattr(appt.appointment_date, "strftime") else str(appt.appointment_date)
                 notif = Notification(
                     id=uuid.uuid4(),
@@ -272,6 +302,7 @@ def update_appointment_status(
 
         db.commit()
         db.refresh(appt)
+        send_telegram_alert(f"UMAppoint: appointment {appt.ref_code or appt.id} status changed to {appt.status.value}.")
         return _to_out(appt)
     except HTTPException:
         db.rollback()
@@ -354,6 +385,7 @@ def request_cancellation(
         ))
         db.commit()
         db.refresh(appt)
+        send_telegram_alert(f"UMAppoint: cancellation requested for {appt.ref_code or appt.id}. Please review in the lecturer portal.")
         return _to_out(appt)
     except HTTPException:
         db.rollback()
@@ -414,6 +446,7 @@ def request_reschedule(
         ))
         db.commit()
         db.refresh(appt)
+        send_telegram_alert(f"UMAppoint: rescheduling requested for {appt.ref_code or appt.id}. Please review in the lecturer portal.")
         return _to_out(appt)
     except HTTPException:
         db.rollback()

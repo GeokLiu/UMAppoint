@@ -181,6 +181,10 @@ class AppointmentOut(BaseModel):
     status: str
     lecturer_note: Optional[str] = None
     student_request_reason: Optional[str] = None
+    reschedule_date: Optional[date] = None
+    reschedule_start_time: Optional[time] = None
+    reschedule_end_time: Optional[time] = None
+    reschedule_location: Optional[str] = None
     created_at: Optional[str] = None
     updated_at: Optional[str] = None
 

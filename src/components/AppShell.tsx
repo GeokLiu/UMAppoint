@@ -17,7 +17,7 @@ import {
   Radio,
 } from "lucide-react";
 import { useAuth } from "@/lib/auth";
-import { fetchNotifications } from "@/lib/api";
+import { apiGetNotifications, getToken } from "@/lib/backend";
 import { initials } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { ChatAssistant } from "@/components/ChatAssistant";
@@ -51,10 +51,11 @@ export function AppShell() {
 
   const notifQ = useQuery({
     queryKey: ["notifications"],
-    queryFn: fetchNotifications,
-    enabled: !!me,
+    queryFn: apiGetNotifications,
+    enabled: !!me && !isPreview && !!getToken(),
     retry: false,
-    staleTime: 60_000,
+    staleTime: 10_000,
+    refetchInterval: 30_000,
   });
 
   const unread = notifQ.data?.filter((n) => !n.is_read).length ?? 0;
