@@ -71,8 +71,8 @@ export const Route = createFileRoute("/_authenticated/appointments")({
         }
         const options = slots.slice(0, 20).map((slot, index) =>
           `${index + 1}. ${fmtDate(slot.slot_date)} · ${fmtTime(slot.start_time)}–${fmtTime(slot.end_time)} · ${slot.location}`
-        ).join("\\n");
-        const selected = window.prompt("Select a new consultation slot by number:\\n" + options);
+        ).join("\n");
+        const selected = window.prompt("Select a new consultation slot by number:\n" + options);
         if (!selected) return;
         const index = Number(selected) - 1;
         if (!Number.isInteger(index) || index < 0 || index >= Math.min(slots.length, 20)) {
